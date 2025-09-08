@@ -1,0 +1,12 @@
+#wbdre-rules-app table.widefat td {
+    vertical-align: middle;
+}
+
+#wbdre-rules-app input,
+#wbdre-rules-app select {
+    min-width: 100px;
+}
+
+#wbdre-save-result {
+    font-weight: bold;
+}
