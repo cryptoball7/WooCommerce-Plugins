@@ -1,0 +1,6 @@
+.dpb-builder { border1px solid #eee; padding12px; margin12px 0; background#fff; }
+.dpb-builder .dpb-table { width100%; border-collapse collapse; margin-bottom12px; }
+.dpb-builder .dpb-table th, .dpb-builder .dpb-table td { padding8px; border-bottom1px solid #f2f2f2; text-alignleft; }
+.dpb-builder .dpb-summary { displayflex; justify-contentspace-between; align-itemscenter; margin-bottom10px; font-weight600; }
+.dpb-builder .dpb-actions { displayflex; gap8px; }
+.dpb-out-of-stock { background#fff3f3; border1px solid #f5c2c2; color#a00; padding8px; margin-bottom8px; }
