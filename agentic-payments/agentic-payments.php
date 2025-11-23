@@ -37,8 +37,8 @@ class Agentic_Payments_Plugin {
     private function init() {
         $this->options = get_option( self::OPTION_KEY, array(
             'enabled' => 'yes',
-            'shared_secret' => maybe_generate_secret(),
-            'webhook_secret' => maybe_generate_secret(),
+            'shared_secret' => $this->maybe_generate_secret(),
+            'webhook_secret' => $this->maybe_generate_secret(),
             'allowed_agents' => '', // comma-separated allowed agent IDs (optional)
             'log' => 'no',
         ) );
