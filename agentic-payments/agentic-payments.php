@@ -37,8 +37,8 @@ class Agentic_Payments_Plugin {
     private function init() {
         $this->options = get_option( self::OPTION_KEY, array(
             'enabled' => 'yes',
-            'shared_secret' => '',//$this->maybe_generate_secret(),
-            'webhook_secret' => '',//$this->maybe_generate_secret(),
+            'shared_secret' => '',$this->maybe_generate_secret(),
+            'webhook_secret' => '',$this->maybe_generate_secret(),
             'allowed_agents' => '', // comma-separated allowed agent IDs (optional)
             'log' => 'no',
         ) );
@@ -344,7 +344,7 @@ class Agentic_Payments_Plugin {
     /* -------------------------
      * Register includes: custom post type for non-Woo payments
      * ------------------------- */
-    private function register_post_type() {
+    public function register_post_type() {
         register_post_type( 'agentic_payment', array(
             'labels' => array(
                 'name' => 'Agentic Payments',
