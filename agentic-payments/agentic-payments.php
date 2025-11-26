@@ -359,20 +359,19 @@ class Agentic_Payments_Plugin {
     /* -------------------------
      * WooCommerce Gateway
      * ------------------------- */
-    public function maybe_register_gateway() {
+public function maybe_register_gateway() {
 
-        // register payment record post type
-        add_action( 'init', array( $this, 'register_post_type' ) );
+    // ensure custom post type still registers
+    add_action( 'init', array( $this, 'register_post_type' ) );
 
-        if ( ! class_exists( 'WooCommerce' ) ) {
-            return;
-        }
-
+    add_action( 'woocommerce_loaded', function() {
         add_filter( 'woocommerce_payment_gateways', function( $methods ) {
             $methods[] = 'WC_Gateway_Agentic';
             return $methods;
         } );
-    }
+    } );
+}
+
 
 
     public function add_wc_gateway( $gateways ) {
