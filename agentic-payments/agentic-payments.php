@@ -359,7 +359,7 @@ class Agentic_Payments_Plugin {
     /* -------------------------
      * WooCommerce Gateway
      * ------------------------- */
-public function maybe_register_gateway() {
+public function maybe_register_gateway_nondebug() {
 
     // ensure custom post type still registers
     add_action( 'init', array( $this, 'register_post_type' ) );
@@ -371,6 +371,44 @@ public function maybe_register_gateway() {
         } );
     } );
 }
+
+// debug version
+public function maybe_register_gateway() {
+
+    error_log('[AgenticPayments] maybe_register_gateway() fired');
+
+    // Still register post type
+    add_action( 'init', array( $this, 'register_post_type' ) );
+
+    if ( ! did_action( 'woocommerce_loaded' ) ) {
+        error_log('[AgenticPayments] woocommerce_loaded has NOT fired yet');
+    } else {
+        error_log('[AgenticPayments] woocommerce_loaded HAS fired');
+    }
+
+    add_action( 'woocommerce_loaded', function() {
+
+        error_log('[AgenticPayments] Inside woocommerce_loaded callback');
+
+    //debug: (2 lines)
+    $gws = WC()->payment_gateways()->get_payment_gateways();
+    error_log('[AgenticPayments] Installed gateways: ' . implode(', ', array_keys($gws)));
+
+        if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+            error_log('[AgenticPayments] WC_Payment_Gateway class NOT found');
+            return;
+        }
+
+        error_log('[AgenticPayments] WC_Payment_Gateway class IS available — registering gateway');
+
+        add_filter( 'woocommerce_payment_gateways', function( $methods ) {
+            error_log('[AgenticPayments] Adding WC_Gateway_Agentic to gateway list');
+            $methods[] = 'WC_Gateway_Agentic';
+            return $methods;
+        } );
+    });
+}
+
 
 
 
@@ -398,6 +436,79 @@ function ksort_recursive( &$array ) {
 // -------------------------
 // WooCommerce Gateway Class
 // -------------------------
+
+//debug:
+error_log('[AgenticPayments] Checking if gateway class should load');
+
+if ( class_exists( 'WC_Payment_Gateway' ) && ! class_exists( 'WC_Gateway_Agentic' ) ) {
+
+    error_log('[AgenticPayments] Loading WC_Gateway_Agentic class');
+
+    class WC_Gateway_Agentic extends WC_Payment_Gateway {
+
+        public function __construct() {
+            $this->id                 = 'agentic';
+            $this->method_title       = 'Agentic Payments';
+            $this->method_description = 'Accept agent-initiated payments via the Agentic Payments plugin.';
+            $this->has_fields         = false;
+
+            $this->init_form_fields();
+            $this->init_settings();
+
+            $this->title       = $this->get_option( 'title', 'Agentic (programmatic)' );
+            $this->description = $this->get_option( 'description', '' );
+
+            add_action(
+                'woocommerce_update_options_payment_gateways_' . $this->id,
+                array( $this, 'process_admin_options' )
+            );
+        }
+
+        public function init_form_fields() {
+            $this->form_fields = array(
+                'enabled' => array(
+                    'title'   => 'Enable/Disable',
+                    'type'    => 'checkbox',
+                    'label'   => 'Enable Agentic payment gateway',
+                    'default' => 'no',
+                ),
+                'title' => array(
+                    'title'   => 'Title',
+                    'type'    => 'text',
+                    'default' => 'Agentic (programmatic)',
+                ),
+                'description' => array(
+                    'title'   => 'Description',
+                    'type'    => 'textarea',
+                    'default' => 'Pay through an agentic payment flow.',
+                ),
+            );
+        }
+
+        public function process_payment( $order_id ) {
+            $order = wc_get_order( $order_id );
+
+            // The agent will later complete the order via REST or a webhook
+            $order->update_status(
+                'on-hold',
+                'Awaiting agentic payment processing.'
+            );
+
+            WC()->cart->empty_cart();
+
+            return array(
+                'result'   => 'success',
+                'redirect' => $this->get_return_url( $order ),
+            );
+        }
+
+    }
+} else {
+    error_log('[AgenticPayments] WC_Payment_Gateway missing OR WC_Gateway_Agentic already loaded');
+}
+
+//nondebug
+/*
 if ( class_exists( 'WC_Payment_Gateway' ) && ! class_exists( 'WC_Gateway_Agentic' ) ) {
 
     class WC_Gateway_Agentic extends WC_Payment_Gateway {
@@ -459,6 +570,64 @@ if ( class_exists( 'WC_Payment_Gateway' ) && ! class_exists( 'WC_Gateway_Agentic
         }
     }
 }
+*/
+
+add_action( 'woocommerce_loaded', function() {
+
+    error_log('[AgenticPayments] woocommerce_loaded callback fired — loading gateway class');
+
+    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+        error_log('[AgenticPayments] ERROR: WC_Payment_Gateway still not available');
+        return;
+    }
+
+    // Load the gateway file if you have it in includes/
+    // require_once plugin_dir_path(__FILE__) . 'includes/class-wc-gateway-agentic.php';
+
+    if ( ! class_exists( 'WC_Gateway_Agentic' ) ) {
+
+        error_log('[AgenticPayments] Defining WC_Gateway_Agentic now');
+
+        class WC_Gateway_Agentic extends WC_Payment_Gateway {
+
+            public function __construct() {
+                $this->id                 = 'agentic';
+                $this->method_title       = 'Agentic (programmatic)';
+                $this->method_description = 'Automated programmatic payments';
+                $this->has_fields         = false;
+
+                $this->init_form_fields();
+                $this->init_settings();
+            }
+
+            public function init_form_fields() {
+                $this->form_fields = [
+                    'enabled' => [
+                        'title'   => 'Enable/Disable',
+                        'type'    => 'checkbox',
+                        'label'   => 'Enable Agentic Payments',
+                        'default' => 'no',
+                    ],
+                ];
+            }
+
+            public function process_payment( $order_id ) {
+                return [
+                    'result'   => 'success',
+                    'redirect' => '/thank-you/',
+                ];
+            }
+        }
+    }
+
+    // Now register the gateway
+    add_filter( 'woocommerce_payment_gateways', function( $gateways ) {
+        error_log('[AgenticPayments] Registering gateway via filter');
+        $gateways[] = 'WC_Gateway_Agentic';
+        return $gateways;
+    });
+});
+
 
 /* Boot plugin */
 Agentic_Payments_Plugin::instance();
