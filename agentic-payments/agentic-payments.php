@@ -469,6 +469,8 @@ add_action( 'woocommerce_loaded', function() {
             $this->init_form_fields();
             $this->init_settings();
 
+            $this->enabled = $this->get_option('enabled', 'yes');
+
             $this->title       = $this->get_option( 'title', 'Agentic (programmatic)' );
             $this->description = $this->get_option( 'description', '' );
 
