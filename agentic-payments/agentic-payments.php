@@ -474,6 +474,11 @@ add_action( 'woocommerce_loaded', function() {
             $this->title       = $this->get_option( 'title', 'Agentic (programmatic)' );
             $this->description = $this->get_option( 'description', '' );
 
+            $this->supports = [
+                'products',
+                'default_credit_card_form'
+            ];
+
             add_action(
                 'woocommerce_update_options_payment_gateways_' . $this->id,
                 array( $this, 'process_admin_options' )
