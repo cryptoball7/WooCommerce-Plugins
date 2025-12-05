@@ -588,6 +588,29 @@ add_filter('woocommerce_available_payment_gateways', function($gateways) {
     return $gateways;
 });
 
+add_action('woocommerce_blocks_loaded', function() {
+
+    error_log('[AgenticPayments] woocommerce_blocks_loaded fired');
+
+    if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
+        error_log('[AgenticPayments] Blocks registry missing');
+        return;
+    }
+
+    add_action(
+        'woocommerce_blocks_payment_method_type_registration',
+        function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
+
+            error_log('[AgenticPayments] Registering Blocks payment method');
+
+            require_once plugin_dir_path(__FILE__) . 'class-wc-agentic-blocks-support.php';
+
+            $registry->register( new WC_Agentic_Blocks_Support() );
+        }
+    );
+});
+
+
 
 /* Boot plugin */
 Agentic_Payments_Plugin::instance();
