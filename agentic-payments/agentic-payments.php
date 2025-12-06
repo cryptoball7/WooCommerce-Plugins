@@ -545,16 +545,15 @@ add_action( 'woocommerce_loaded', function() {
         return;
     }
 
-    add_action(
+    /*add_action(
             'woocommerce_blocks_payment_method_type_registration',
             function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
                 require_once plugin_dir_path( __FILE__ ) . 'class-wc-agentic-blocks-support.php';
                 $payment_method_registry->register( new WC_Agentic_Blocks_Support() );
                 error_log('[AgenticPayments] Registered Agentic Blocks payment method');
             }
-        );
+        );*/
     });
-
 
 });
 
