@@ -13,6 +13,7 @@ class WC_Agentic_Blocks_Support extends AbstractPaymentMethodType {
      * Initialize settings
      */
     public function initialize() {
+        error_log("WC_Agentic_Blocks_Support initialized.");
         $this->settings = get_option( 'woocommerce_agentic_settings', [] );
     }
 
