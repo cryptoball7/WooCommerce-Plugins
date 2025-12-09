@@ -21,6 +21,8 @@ class WC_Agentic_Blocks_Support extends AbstractPaymentMethodType {
      * Whether the payment method is active in checkout
      */
     public function is_active() {
+        error_log("is_active() called, returning: ");
+        error_log(isset( $this->settings['enabled'] ) && $this->settings['enabled'] === 'yes');
         return isset( $this->settings['enabled'] ) && $this->settings['enabled'] === 'yes';
     }
 
