@@ -35,4 +35,9 @@ class WC_Agentic_Blocks_Support extends AbstractPaymentMethodType {
             'description' => $this->settings['description'] ?? '',
         ];
     }
+
+    public function get_name() { return 'agentic'; }
+    public function get_payment_method_script_handles() {}
+    public function get_payment_method_data() {}
+
 }
