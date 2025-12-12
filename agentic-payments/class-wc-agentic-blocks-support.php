@@ -13,7 +13,7 @@ class WC_Agentic_Blocks_Support extends AbstractPaymentMethodType {
      * Initialize settings
      */
     public function initialize() {
-        error_log("WC_Agentic_Blocks_Support initialized.");
+        error_log("[AgenticPayments][DBG] blocks initialize() called");
         $this->settings = get_option( 'woocommerce_agentic_settings', [] );
     }
 
@@ -37,7 +37,6 @@ class WC_Agentic_Blocks_Support extends AbstractPaymentMethodType {
     }
 
     public function get_name() { return 'agentic'; }
-    public function get_payment_method_script_handles() {}
-    public function get_payment_method_data() {}
+    // public function get_payment_method_script_handles() {}
 
 }
