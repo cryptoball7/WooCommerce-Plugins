@@ -583,6 +583,20 @@ add_action('woocommerce_blocks_loaded', function() {
 
 
 
+
+
+
+wp_register_script(
+    'agentic-blocks',
+    plugins_url('/assets/js/blocks-payment.js', __FILE__),
+    [ 'wc-blocks-registry', 'wp-element', 'wp-i18n' ],
+    '1.0.0',
+    true
+);
+error_log("[AgenticPayments][DBG] registered agentic-blocks JS");
+
+
+
 /* Boot plugin */
 Agentic_Payments_Plugin::instance();
 
