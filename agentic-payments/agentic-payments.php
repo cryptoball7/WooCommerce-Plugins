@@ -574,9 +574,9 @@ add_action('woocommerce_blocks_loaded', function() {
 
             error_log('[AgenticPayments] Registering Blocks payment method');
 
-            require_once plugin_dir_path(__FILE__) . 'class-wc-agentic-blocks-support.php';
+            require_once plugin_dir_path(__FILE__) . 'includes/class-wc-agentic-blocks.php';
 
-            $registry->register( new WC_Agentic_Blocks_Support() );
+            $registry->register( new WC_Agentic_Blocks () );
         }
     );
 });
@@ -586,7 +586,7 @@ add_action('woocommerce_blocks_loaded', function() {
 
 
 
-add_action("wp_enqueue_script", function () {
+add_action("init" /*"wp_enqueue_script"*/, function () {
 
 wp_register_script(
     'agentic-blocks',
@@ -741,17 +741,17 @@ add_action( 'woocommerce_blocks_loaded', function() {
             }
 
             // Include the blocks-support file (adjust path if you placed it elsewhere)
-            $blocks_file = plugin_dir_path( __FILE__ ) . 'class-wc-agentic-blocks-support.php';
+            $blocks_file = plugin_dir_path( __FILE__ ) . 'includes/class-wc-agentic-blocks.php';
             if ( file_exists( $blocks_file ) ) {
                 error_log('[AgenticPayments][DBG] 11. blocks-support file exists; requiring it: ' . $blocks_file);
-                require_once $blocks_file;
+                //require_once $blocks_file;
             } else {
                 error_log('[AgenticPayments][DBG] 11. blocks-support file MISSING at: ' . $blocks_file);
             }
 
-            if ( class_exists( 'WC_Agentic_Blocks_Support' ) ) {
-                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks_Support class exists; constructing and registering');
-                $instance = new WC_Agentic_Blocks_Support();
+            if ( class_exists( 'WC_Agentic_Blocks ' ) ) {
+                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks  class exists; constructing and registering');
+                $instance = new WC_Agentic_Blocks ();
                 // optional: log what's returned by get_payment_method_data()
                 if ( method_exists( $instance, 'get_payment_method_data' ) ) {
                     $data = $instance->get_payment_method_data();
@@ -776,7 +776,7 @@ add_action( 'woocommerce_blocks_loaded', function() {
                     error_log('[AgenticPayments][DBG] 15. registry->register method missing; cannot register');
                 }
             } else {
-                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks_Support class still missing after require_once');
+                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks  class still missing after require_once');
             }
         } catch ( Throwable $t ) {
             error_log('[AgenticPayments][DBG] Exception during blocks registration: ' . $t->getMessage());
@@ -804,3 +804,76 @@ add_action( 'wp_loaded', function() {
         }
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Load classic gateway
+ */
+/*add_action( 'woocommerce_loaded', function() {
+    require_once __DIR__ . '/includes/class-wc-gateway-agentic.php';
+
+    add_filter( 'woocommerce_payment_gateways', function( $gateways ) {
+        $gateways[] = 'WC_Gateway_Agentic';
+        return $gateways;
+    });
+});*/
+
+/**
+ * Register Blocks integration
+ */
+add_action( 'woocommerce_blocks_loaded', function() {
+
+    error_log('[AgenticPayments][Blocks] woocommerce_blocks_loaded');
+
+    if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
+        error_log('[AgenticPayments][Blocks] PaymentMethodRegistry missing');
+        return;
+    }
+/*
+    // Register JS
+    wp_register_script(
+        'agentic-blocks',
+        plugins_url( 'assets/js/blocks-payment.js', __FILE__ ),
+        [ 'wc-blocks-registry', 'wp-element' ],
+        '1.0.0',
+        true
+    );
+*/
+    error_log('[AgenticPayments][Blocks] JS registered');
+
+    add_action(
+        'woocommerce_blocks_payment_method_type_registration',
+        function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
+
+            if ( $registry->is_registered( 'agentic' ) ) {
+                error_log('[AgenticPayments][Blocks] already registered');
+                return;
+            }
+
+            // require_once __DIR__ . '/includes/class-wc-agentic-blocks.php';
+
+            $registry->register( new WC_Agentic_Blocks() );
+
+            error_log('[AgenticPayments][Blocks] registered with registry');
+        }
+    );
+});
+
