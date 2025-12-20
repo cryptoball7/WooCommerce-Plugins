@@ -565,6 +565,26 @@ add_action('init', function() {
     }
 });
 
+add_action('rest_api_init', function() {
+    register_rest_route('agentic/v1', '/confirm-payment', [
+        'methods'  => 'POST',
+        'callback' => 'agentic_confirm_payment_handler',
+        'permission_callback' => '__return_true',
+    ]);
+});
+
+function agentic_confirm_payment_handler( WP_REST_Request $request ) {
+    $order_id = $request->get_param('order_id');
+
+    $order = wc_get_order($order_id);
+    $order->payment_complete();
+
+    error_log('[AgenticPayments] Payment confirmed via webhook for ' . $order_id);
+
+    return ['status' => 'ok'];
+}
+
+
 
 add_filter('woocommerce_available_payment_gateways', function($gateways) {
     error_log('[AgenticPayments] Available gateways BEFORE filtering: ' . implode(', ', array_keys($gateways)));
