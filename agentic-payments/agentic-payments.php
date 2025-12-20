@@ -574,6 +574,8 @@ add_action('rest_api_init', function() {
 });
 
 function agentic_confirm_payment_handler( WP_REST_Request $request ) {
+    error_log('[AgenticPaments] agentic_confirm_payment_handler called.');
+
     $order_id = $request->get_param('order_id');
 
     $order = wc_get_order($order_id);
