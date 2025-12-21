@@ -576,9 +576,38 @@ add_action('rest_api_init', function() {
 function agentic_confirm_payment_handler( WP_REST_Request $request ) {
     error_log('[AgenticPaments] agentic_confirm_payment_handler called.');
 
+
     $order_id = $request->get_param('order_id');
 
     $order = wc_get_order($order_id);
+
+error_log('[AgenticPayments] BEFORE payment_complete');
+error_log('[AgenticPayments] Order ID: ' . $order->get_id());
+error_log('[AgenticPayments] Status: ' . $order->get_status());
+error_log('[AgenticPayments] Needs payment? ' . ( $order->needs_payment() ? 'YES' : 'NO' ));
+error_log('[AgenticPayments] Has paid? ' . ( $order->is_paid() ? 'YES' : 'NO' ));
+error_log('[AgenticPayments] Payment method: ' . $order->get_payment_method());
+
+$all_virtual = true;
+
+foreach ( $order->get_items() as $item ) {
+    $product = $item->get_product();
+
+    if ( ! $product ) {
+        continue;
+    }
+
+    error_log('[AgenticPayments] Product ' . $product->get_id() . ':');
+    error_log('  - is_virtual: ' . ( $product->is_virtual() ? 'YES' : 'NO' ));
+    error_log('  - is_downloadable: ' . ( $product->is_downloadable() ? 'YES' : 'NO' ));
+
+    if ( ! $product->is_virtual() ) {
+        $all_virtual = false;
+    }
+}
+
+error_log('[AgenticPayments] All products virtual? ' . ( $all_virtual ? 'YES' : 'NO' ));
+
     $order->payment_complete();
 
     error_log('[AgenticPayments] Payment confirmed via webhook for ' . $order_id);
