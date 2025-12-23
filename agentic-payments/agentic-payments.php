@@ -728,149 +728,6 @@ SECURITY NOTES:
 
 
 
-// ===== Agentic Payments — deep debug instrumentation for Block Checkout =====
-add_action( 'plugins_loaded', function() {
-    error_log('[AgenticPayments][DBG] 1. plugins_loaded (plugin bootstrapped)');
-    error_log('[AgenticPayments][DBG] PHP version: ' . phpversion());
-    error_log('[AgenticPayments][DBG] WP version: ' . get_bloginfo('version'));
-});
-
-// Confirm WooCommerce presence early
-add_action( 'plugins_loaded', function() {
-    if ( class_exists( 'WooCommerce' ) ) {
-        error_log('[AgenticPayments][DBG] 2. WooCommerce class exists');
-    } else {
-        error_log('[AgenticPayments][DBG] 2. WooCommerce not active');
-    }
-});
-
-// When plugin executes maybe_register_gateway() (where you added it), log there too
-add_action( 'init', function() {
-    if ( method_exists( 'Agentic_Payments_Plugin', 'maybe_register_gateway' ) ) {
-        error_log('[AgenticPayments][DBG] 3. init: Agentic plugin registered maybe_register_gateway exists');
-    }
-});
-
-// After your gateway is added to classic gateways, log the gateway list
-add_action( 'init', function() {
-    if ( class_exists( 'WC_Payment_Gateway' ) && function_exists('WC') ) {
-        try {
-            if ( function_exists('WC') && WC()->payment_gateways() ) {
-                $gw = WC()->payment_gateways()->payment_gateways();
-                error_log('[AgenticPayments][DBG] 4. Classic gateways currently registered: ' . implode(', ', array_keys($gw)));
-            } else {
-                error_log('[AgenticPayments][DBG] 4. WC()->payment_gateways() not available yet');
-            }
-        } catch (Throwable $e) {
-            error_log('[AgenticPayments][DBG] 4. Exception when reading gateways: ' . $e->getMessage());
-        }
-    } else {
-        error_log('[AgenticPayments][DBG] 4. WC_Payment_Gateway unavailable at init');
-    }
-});
-
-// Confirm the gateway class exists (WC_Gateway_Agentic)
-add_action( 'init', function() {
-    if ( class_exists( 'WC_Gateway_Agentic' ) ) {
-        error_log('[AgenticPayments][DBG] 5. WC_Gateway_Agentic class EXISTS');
-    } else {
-        error_log('[AgenticPayments][DBG] 5. WC_Gateway_Agentic class MISSING');
-    }
-});
-
-// Track woocommerce_loaded and registration
-add_action( 'woocommerce_loaded', function() {
-    error_log('[AgenticPayments][DBG] 6. woocommerce_loaded fired');
-});
-
-// Instrument the exact registry hook we use for Blocks
-add_action( 'woocommerce_blocks_loaded', function() {
-    error_log('[AgenticPayments][DBG] 7. woocommerce_blocks_loaded fired');
-
-    // Check for registry class
-    if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry' ) ) {
-        error_log('[AgenticPayments][DBG] 8. PaymentMethodRegistry class exists');
-    } else {
-        error_log('[AgenticPayments][DBG] 8. PaymentMethodRegistry class MISSING');
-    }
-
-    // Add controlled registration callback that logs everything
-    add_action( 'woocommerce_blocks_payment_method_type_registration', function( $registry ) {
-
-        try {
-            $hasMethod = method_exists( $registry, 'register' );
-            error_log('[AgenticPayments][DBG] 9. blocks_payment_method_type_registration fired; registry->register exists? ' . ($hasMethod ? 'YES' : 'NO'));
-
-            // Is agentic already registered?
-            if ( method_exists( $registry, 'is_registered' ) && $registry->is_registered( 'agentic' ) ) {
-                error_log('[AgenticPayments][DBG] 10. agentic already registered in registry -> skipping register()');
-                return;
-            }
-
-            // Include the blocks-support file (adjust path if you placed it elsewhere)
-            $blocks_file = plugin_dir_path( __FILE__ ) . 'includes/class-wc-agentic-blocks.php';
-            if ( file_exists( $blocks_file ) ) {
-                error_log('[AgenticPayments][DBG] 11. blocks-support file exists; requiring it: ' . $blocks_file);
-                //require_once $blocks_file;
-            } else {
-                error_log('[AgenticPayments][DBG] 11. blocks-support file MISSING at: ' . $blocks_file);
-            }
-
-            if ( class_exists( 'WC_Agentic_Blocks ' ) ) {
-                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks  class exists; constructing and registering');
-                $instance = new WC_Agentic_Blocks ();
-                // optional: log what's returned by get_payment_method_data()
-                if ( method_exists( $instance, 'get_payment_method_data' ) ) {
-                    $data = $instance->get_payment_method_data();
-                    error_log('[AgenticPayments][DBG] 13. blocks-support get_payment_method_data() -> ' . print_r( $data, true ));
-                } else {
-                    error_log('[AgenticPayments][DBG] 13. blocks-support missing get_payment_method_data()');
-                }
-
-                // Check is_active()
-                if ( method_exists( $instance, 'is_active' ) ) {
-                    $active = $instance->is_active();
-                    error_log('[AgenticPayments][DBG] 14. blocks-support is_active() -> ' . ($active ? 'YES' : 'NO'));
-                } else {
-                    error_log('[AgenticPayments][DBG] 14. blocks-support missing is_active()');
-                }
-
-                // Last, register if possible
-                if ( method_exists( $registry, 'register' ) ) {
-                    $registry->register( $instance );
-                    error_log('[AgenticPayments][DBG] 15. registry->register() called for agentic');
-                } else {
-                    error_log('[AgenticPayments][DBG] 15. registry->register method missing; cannot register');
-                }
-            } else {
-                error_log('[AgenticPayments][DBG] 12. WC_Agentic_Blocks  class still missing after require_once');
-            }
-        } catch ( Throwable $t ) {
-            error_log('[AgenticPayments][DBG] Exception during blocks registration: ' . $t->getMessage());
-        }
-
-    }, 10, 1 );
-});
-
-// Log the available gateways right before the checkout templates render
-add_filter( 'woocommerce_available_payment_gateways', function( $gateways ) {
-    error_log('[AgenticPayments][DBG] 16. woocommerce_available_payment_gateways BEFORE FILTER: ' . implode(', ', array_keys( $gateways ?: [] )));
-    $present = isset( $gateways['agentic'] ) ? 'YES' : 'NO';
-    error_log('[AgenticPayments][DBG] 17. Is agentic present in available gateways? ' . $present);
-    return $gateways;
-}, 100 );
-
-// Also log the Blocks-specific gateway list (if available in WC instance)
-add_action( 'wp_loaded', function() {
-    if ( function_exists('WC') && WC()->payment_gateways() ) {
-        try {
-            $gws = WC()->payment_gateways()->payment_gateways();
-            error_log('[AgenticPayments][DBG] 18. wp_loaded: Classic WC gateways list: ' . implode(', ', array_keys($gws)));
-        } catch ( Throwable $e ) {
-            error_log('[AgenticPayments][DBG] 18. wp_loaded: exception reading gateways: ' . $e->getMessage());
-        }
-    }
-});
 
 
 
@@ -884,24 +741,6 @@ add_action( 'wp_loaded', function() {
 
 
 
-
-
-
-
-
-
-
-/**
- * Load classic gateway
- */
-/*add_action( 'woocommerce_loaded', function() {
-    require_once __DIR__ . '/includes/class-wc-gateway-agentic.php';
-
-    add_filter( 'woocommerce_payment_gateways', function( $gateways ) {
-        $gateways[] = 'WC_Gateway_Agentic';
-        return $gateways;
-    });
-});*/
 
 /**
  * Register Blocks integration
@@ -914,16 +753,6 @@ add_action( 'woocommerce_blocks_loaded', function() {
         error_log('[AgenticPayments][Blocks] PaymentMethodRegistry missing');
         return;
     }
-/*
-    // Register JS
-    wp_register_script(
-        'agentic-blocks',
-        plugins_url( 'assets/js/blocks-payment.js', __FILE__ ),
-        [ 'wc-blocks-registry', 'wp-element' ],
-        '1.0.0',
-        true
-    );
-*/
     error_log('[AgenticPayments][Blocks] JS registered');
 
     add_action(
