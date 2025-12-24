@@ -372,7 +372,6 @@ public function maybe_register_gateway_nondebug() {
     } );
 }
 
-// debug version TODO remove this
 public function maybe_register_gateway() {
 
     // Still register post type
@@ -407,9 +406,6 @@ function ksort_recursive( &$array ) {
 // -------------------------
 // WooCommerce Gateway Class
 // -------------------------
-
-
-//nondebug TODO remove
 
 add_action( 'woocommerce_loaded', function() {
 
