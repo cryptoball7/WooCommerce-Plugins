@@ -372,41 +372,12 @@ public function maybe_register_gateway_nondebug() {
     } );
 }
 
-// debug version
+// debug version TODO remove this
 public function maybe_register_gateway() {
-
-    error_log('[AgenticPayments] maybe_register_gateway() fired');
 
     // Still register post type
     add_action( 'init', array( $this, 'register_post_type' ) );
 
-    if ( ! did_action( 'woocommerce_loaded' ) ) {
-        error_log('[AgenticPayments] woocommerce_loaded has NOT fired yet');
-    } else {
-        error_log('[AgenticPayments] woocommerce_loaded HAS fired');
-    }
-
-    add_action( 'woocommerce_loaded', function() {
-
-        error_log('[AgenticPayments] Inside woocommerce_loaded callback');
-
-    //debug: (2 lines)
-    $gws = WC()->payment_gateways()->get_payment_gateways();
-    error_log('[AgenticPayments] Installed gateways: ' . implode(', ', array_keys($gws)));
-
-        if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
-            error_log('[AgenticPayments] WC_Payment_Gateway class NOT found');
-            return;
-        }
-
-        error_log('[AgenticPayments] WC_Payment_Gateway class IS available — registering gateway');
-
-        add_filter( 'woocommerce_payment_gateways', function( $methods ) {
-            error_log('[AgenticPayments] Adding WC_Gateway_Agentic to gateway list');
-            $methods[] = 'WC_Gateway_Agentic';
-            return $methods;
-        } );
-    });
 }
 
 
@@ -438,16 +409,11 @@ function ksort_recursive( &$array ) {
 // -------------------------
 
 
-//nondebug
-
-// if ( class_exists( 'WC_Payment_Gateway' ) && ! class_exists( 'WC_Gateway_Agentic' ) ) {
+//nondebug TODO remove
 
 add_action( 'woocommerce_loaded', function() {
 
-    error_log('[AgenticPayments] woocommerce_loaded callback fired — loading gateway class');
-
     if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
-        error_log('[AgenticPayments] ERROR: WC_Payment_Gateway still not available');
         return;
     }
 
@@ -455,8 +421,6 @@ add_action( 'woocommerce_loaded', function() {
     // require_once plugin_dir_path(__FILE__) . 'includes/class-wc-gateway-agentic.php';
 
     if ( ! class_exists( 'WC_Gateway_Agentic' ) ) {
-
-        error_log('[AgenticPayments] Defining WC_Gateway_Agentic now');
 
         class WC_Gateway_Agentic extends WC_Payment_Gateway {
 
@@ -526,15 +490,12 @@ add_action( 'woocommerce_loaded', function() {
         public function mark_order_paid( $order_id ) {
           $order = wc_get_order( $order_id );
           $order->payment_complete();
-          error_log('[AgenticPayments] Marked order as paid ' . $order_id);
         }
 
 
     }
 
-    } else {
-    error_log('[AgenticPayments] WC_Payment_Gateway missing OR WC_Gateway_Agentic already loaded');
-    }
+}
 
     // Now register the gateway
     add_filter( 'woocommerce_payment_gateways', function( $gateways ) {
@@ -545,10 +506,7 @@ add_action( 'woocommerce_loaded', function() {
 
     add_action( 'woocommerce_blocks_loaded', function() {
 
-    error_log('[AgenticPayments] woocommerce_blocks_loaded — preparing block integration');
-
     if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
-        error_log('[AgenticPayments] Blocks registry class missing');
         return;
     }
     });
@@ -574,72 +532,29 @@ add_action('rest_api_init', function() {
 });
 
 function agentic_confirm_payment_handler( WP_REST_Request $request ) {
-    error_log('[AgenticPaments] agentic_confirm_payment_handler called.');
-
 
     $order_id = $request->get_param('order_id');
 
     $order = wc_get_order($order_id);
-
-error_log('[AgenticPayments] BEFORE payment_complete');
-error_log('[AgenticPayments] Order ID: ' . $order->get_id());
-error_log('[AgenticPayments] Status: ' . $order->get_status());
-error_log('[AgenticPayments] Needs payment? ' . ( $order->needs_payment() ? 'YES' : 'NO' ));
-error_log('[AgenticPayments] Has paid? ' . ( $order->is_paid() ? 'YES' : 'NO' ));
-error_log('[AgenticPayments] Payment method: ' . $order->get_payment_method());
-
-$all_virtual = true;
-
-foreach ( $order->get_items() as $item ) {
-    $product = $item->get_product();
-
-    if ( ! $product ) {
-        continue;
-    }
-
-    error_log('[AgenticPayments] Product ' . $product->get_id() . ':');
-    error_log('  - is_virtual: ' . ( $product->is_virtual() ? 'YES' : 'NO' ));
-    error_log('  - is_downloadable: ' . ( $product->is_downloadable() ? 'YES' : 'NO' ));
-
-    if ( ! $product->is_virtual() ) {
-        $all_virtual = false;
-    }
-}
-
-error_log('[AgenticPayments] All products virtual? ' . ( $all_virtual ? 'YES' : 'NO' ));
-
     $order->payment_complete();
 
-    error_log('[AgenticPayments] Payment confirmed via webhook for ' . $order_id);
-
     return ['status' => 'ok'];
+
 }
 
 
 
-add_filter('woocommerce_available_payment_gateways', function($gateways) {
-    error_log('[AgenticPayments] Available gateways BEFORE filtering: ' . implode(', ', array_keys($gateways)));
 
-    $agentic = isset($gateways['agentic']) ? 'YES' : 'NO';
-    error_log('[AgenticPayments] Is Agentic present? ' . $agentic);
-
-    return $gateways;
-});
 
 add_action('woocommerce_blocks_loaded', function() {
 
-    error_log('[AgenticPayments] woocommerce_blocks_loaded fired');
-
     if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
-        error_log('[AgenticPayments] Blocks registry missing');
         return;
     }
 
     add_action(
         'woocommerce_blocks_payment_method_type_registration',
         function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
-
-            error_log('[AgenticPayments] Registering Blocks payment method');
 
             require_once plugin_dir_path(__FILE__) . 'includes/class-wc-agentic-blocks.php';
 
@@ -655,14 +570,13 @@ add_action('woocommerce_blocks_loaded', function() {
 
 add_action("init" /*"wp_enqueue_script"*/, function () {
 
-wp_register_script(
-    'agentic-blocks',
-    plugins_url('/assets/js/blocks-payment.js', __FILE__),
-    [ 'wc-blocks-registry', 'wp-element', 'wp-i18n' ],
-    '1.0.0',
-    true
-);
-error_log("[AgenticPayments][DBG] registered agentic-blocks JS");
+    wp_register_script(
+        'agentic-blocks',
+        plugins_url('/assets/js/blocks-payment.js', __FILE__),
+        [ 'wc-blocks-registry', 'wp-element', 'wp-i18n' ],
+        '1.0.0',
+        true
+    );
 
 });
 
@@ -747,28 +661,21 @@ SECURITY NOTES:
  */
 add_action( 'woocommerce_blocks_loaded', function() {
 
-    error_log('[AgenticPayments][Blocks] woocommerce_blocks_loaded');
-
     if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
-        error_log('[AgenticPayments][Blocks] PaymentMethodRegistry missing');
         return;
     }
-    error_log('[AgenticPayments][Blocks] JS registered');
 
     add_action(
         'woocommerce_blocks_payment_method_type_registration',
         function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
 
             if ( $registry->is_registered( 'agentic' ) ) {
-                error_log('[AgenticPayments][Blocks] already registered');
                 return;
             }
 
             // require_once __DIR__ . '/includes/class-wc-agentic-blocks.php';
 
             $registry->register( new WC_Agentic_Blocks() );
-
-            error_log('[AgenticPayments][Blocks] registered with registry');
         }
     );
 });
