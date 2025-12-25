@@ -11,6 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+// TODO: Move this to settings
+define( 'AGENTIC_WEBHOOK_SECRET', 'super_secret_agentic_key_change_me' );
+
 class Agentic_Payments_Plugin {
 
     const OPTION_KEY = 'agentic_payments_options';
@@ -592,6 +595,44 @@ add_action("init" /*"wp_enqueue_script"*/, function () {
 function agentic_handle_payment_complete( WP_REST_Request $request ) {
 
     error_log('[AgenticPayments] Callback received');
+
+    // ---- HMAC SIGNATURE VERIFICATION ----
+
+$signature = $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ?? '';
+$timestamp = $_SERVER['HTTP_X_AGENTIC_TIMESTAMP'] ?? '';
+
+if ( ! $signature || ! $timestamp ) {
+    error_log('[AgenticPayments] Missing HMAC headers');
+    return new WP_REST_Response( [ 'error' => 'Missing signature' ], 401 );
+}
+
+// Prevent replay attacks (5 min window)
+if ( abs( time() - intval( $timestamp ) ) > 300 ) {
+    error_log('[AgenticPayments] Stale request timestamp');
+    return new WP_REST_Response( [ 'error' => 'Stale request' ], 401 );
+}
+
+// Get raw request body
+$raw_body = $request->get_body();
+
+// Build signed payload
+$signed_payload = $timestamp . '.' . $raw_body;
+
+// Compute expected signature
+$expected_signature = hash_hmac(
+    'sha256',
+    $signed_payload,
+    AGENTIC_WEBHOOK_SECRET
+);
+
+// Constant-time compare
+if ( ! hash_equals( $expected_signature, $signature ) ) {
+    error_log('[AgenticPayments] Invalid HMAC signature');
+    return new WP_REST_Response( [ 'error' => 'Invalid signature' ], 401 );
+}
+
+error_log('[AgenticPayments] HMAC signature verified');
+
 
     // ---- Parse payload ----
     $order_id       = absint( $request->get_param( 'order_id' ) );
