@@ -55,6 +55,19 @@ class Agentic_Payments_Plugin {
 
         // endpoint to accept webhooks from payment processors / agent platform
         add_action( 'init', array( $this, 'maybe_handle_webhook' ) );
+
+add_action( 'rest_api_init', function () {
+    register_rest_route(
+        'agentic/v1',
+        '/payment-complete',
+        [
+            'methods'             => 'POST',
+            'callback'            => 'agentic_handle_payment_complete',
+            'permission_callback' => '__return_true', // auth handled manually
+        ]
+    );
+});
+
     }
 
     public function on_activate() {
@@ -575,6 +588,88 @@ add_action("init" /*"wp_enqueue_script"*/, function () {
     );
 
 });
+
+function agentic_handle_payment_complete( WP_REST_Request $request ) {
+
+    error_log('[AgenticPayments] Callback received');
+
+    // ---- Parse payload ----
+    $order_id       = absint( $request->get_param( 'order_id' ) );
+    $transaction_id = sanitize_text_field( $request->get_param( 'transaction_id' ) );
+    $agent_id       = sanitize_text_field( $request->get_param( 'agent_id' ) );
+
+    if ( ! $order_id || ! $transaction_id ) {
+        error_log('[AgenticPayments] Missing order_id or transaction_id');
+        return new WP_REST_Response( [ 'error' => 'Invalid payload' ], 400 );
+    }
+
+    $order = wc_get_order( $order_id );
+
+    if ( ! $order ) {
+        error_log('[AgenticPayments] Order not found: ' . $order_id);
+        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+    }
+
+    error_log('[AgenticPayments] Processing order ' . $order_id);
+
+    // ---- IDEMPOTENCY CHECK ----
+    $already_completed = $order->get_meta( '_agentic_completed' );
+
+    if ( $already_completed ) {
+        error_log('[AgenticPayments] Idempotent hit — order already completed');
+
+        return new WP_REST_Response(
+            [
+                'status'  => 'ok',
+                'message' => 'Order already processed',
+            ],
+            200
+        );
+    }
+
+    // ---- Optional: validate payment method ----
+    if ( $order->get_payment_method() !== 'agentic' ) {
+        error_log('[AgenticPayments] Payment method mismatch');
+        return new WP_REST_Response( [ 'error' => 'Invalid payment method' ], 400 );
+    }
+
+    // ---- Mark paid ----
+    error_log('[AgenticPayments] Calling payment_complete');
+
+    $order->payment_complete( $transaction_id );
+
+    // ---- Force completed if needed ----
+    if ( $order->has_status( 'processing' ) ) {
+        error_log('[AgenticPayments] Forcing status to completed');
+        $order->update_status( 'completed', 'Agentic payment finalized' );
+    }
+
+    // ---- Persist idempotency flag ----
+    $order->update_meta_data( '_agentic_completed', time() );
+    $order->update_meta_data( '_agentic_transaction_id', $transaction_id );
+    $order->update_meta_data( '_agentic_agent_id', $agent_id );
+    $order->save();
+
+    // ---- Audit trail ----
+    $order->add_order_note(
+        sprintf(
+            'Agentic payment confirmed. Agent: %s, TX: %s',
+            $agent_id ?: 'unknown',
+            $transaction_id
+        )
+    );
+
+    error_log('[AgenticPayments] Order completed successfully');
+
+    return new WP_REST_Response(
+        [
+            'status'   => 'success',
+            'order_id' => $order_id,
+        ],
+        200
+    );
+}
+
 
 
 
