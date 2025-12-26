@@ -482,6 +482,7 @@ add_action( 'woocommerce_loaded', function() {
             );
         }
 
+/*
         public function process_payment( $order_id ) {
             $order = wc_get_order( $order_id );
 
@@ -498,6 +499,22 @@ add_action( 'woocommerce_loaded', function() {
                 'redirect' => $this->get_return_url( $order ),
             );
         }
+*/
+public function process_payment( $order_id ) {
+
+    $order = wc_get_order( $order_id );
+
+    $order->update_status(
+        'pending',
+        'Awaiting agentic payment confirmation'
+    );
+
+    return [
+        'result'   => 'success',
+        'redirect' => $this->get_return_url( $order ),
+    ];
+}
+
 
         public function mark_order_paid( $order_id ) {
           $order = wc_get_order( $order_id );
@@ -523,6 +540,52 @@ add_action( 'woocommerce_loaded', function() {
     }
     });
 
+});
+
+add_action( 'rest_api_init', function () {
+    register_rest_route(
+        'agentic/v1',
+        '/order-status/(?P<order_id>\d+)',
+        [
+            'methods'             => 'GET',
+            'callback'            => 'agentic_check_order_status',
+            'permission_callback' => '__return_true',
+        ]
+    );
+});
+
+function agentic_check_order_status( WP_REST_Request $request ) {
+
+    $order_id = absint( $request['order_id'] );
+    $order    = wc_get_order( $order_id );
+
+    if ( ! $order ) {
+        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+    }
+
+    return new WP_REST_Response(
+        [
+            'status'      => $order->get_status(),
+            'is_paid'     => $order->is_paid(),
+            'completed'   => (bool) $order->get_meta( '_agentic_completed' ),
+        ],
+        200
+    );
+}
+
+add_action( 'wp_enqueue_scripts', function () {
+    wp_enqueue_script(
+        'agentic-polling',
+        plugins_url( '/assets/js/agentic-polling.js', __FILE__ ),
+        [],
+        '1.0',
+        true
+    );
+});
+
+add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
+    echo '<p><strong>Waiting for agent approval…</strong></p>';
+    echo '<p>This page will update automatically.</p>';
 });
 
 add_action('init', function() {
