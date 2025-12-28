@@ -26,3 +26,5 @@
 
     setInterval(poll, 3000);
 })();
+
+console.log("[AgenticPayments] agentic-polling.js done");
