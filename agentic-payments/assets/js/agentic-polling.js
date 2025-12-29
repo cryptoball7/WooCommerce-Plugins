@@ -1,10 +1,9 @@
 (function () {
-    const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('order');
-
-    if (!orderId) {
+    if (typeof AgenticOrder === 'undefined') {
         return;
     }
+
+    const orderId = AgenticOrder.orderId;
 
     console.log('[AgenticPayments] Polling order', orderId);
 
@@ -26,5 +25,3 @@
 
     setInterval(poll, 3000);
 })();
-
-console.log("[AgenticPayments] agentic-polling.js done");

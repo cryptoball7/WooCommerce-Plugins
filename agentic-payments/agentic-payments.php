@@ -588,6 +588,26 @@ add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
     echo '<p>This page will update automatically.</p>';
 });
 
+add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
+
+    wp_enqueue_script(
+        'agentic-polling',
+        plugins_url( '/assets/js/agentic-polling.js', __FILE__ ),
+        [],
+        '1.0',
+        true
+    );
+
+    wp_localize_script(
+        'agentic-polling',
+        'AgenticOrder',
+        [
+            'orderId' => $order_id,
+        ]
+    );
+});
+
+
 add_action('init', function() {
     if ( isset($_GET['agentic_test_payment']) ) {
         $order_id = absint($_GET['agentic_test_payment']);
