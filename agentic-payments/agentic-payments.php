@@ -584,11 +584,20 @@ add_action( 'wp_enqueue_scripts', function () {
 });
 
 add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
-    echo '<p><strong>Waiting for agent approval…</strong></p>';
-    echo '<p>This page will update automatically.</p>';
-});
 
-add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
+    $order = wc_get_order( $order_id );
+
+    // If order is already completed, do NOT enqueue polling
+    if ( $order && $order->has_status( 'completed' ) ) {
+        echo '<p><strong>Payment complete.</strong></p>';
+        return;
+    }
+
+    // Otherwise: show waiting message + polling
+    else {
+        echo '<p><strong>Waiting for agent approval…</strong></p>';
+        echo '<p>This page will update automatically.</p>';
+    }
 
     wp_enqueue_script(
         'agentic-polling',
@@ -606,6 +615,7 @@ add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
         ]
     );
 });
+
 
 
 add_action('init', function() {
