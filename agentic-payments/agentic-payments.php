@@ -71,6 +71,18 @@ add_action( 'rest_api_init', function () {
     );
 });
 
+add_action( 'rest_api_init', function () {
+    register_rest_route(
+        'agentic/v1',
+        '/refund',
+        [
+            'methods'             => 'POST',
+            'callback'            => 'agentic_handle_refund',
+            'permission_callback' => '__return_true', // HMAC handles auth
+        ]
+    );
+});
+
     }
 
     public function on_activate() {
@@ -799,6 +811,117 @@ error_log('[AgenticPayments] HMAC signature verified');
         [
             'status'   => 'success',
             'order_id' => $order_id,
+        ],
+        200
+    );
+}
+
+function agentic_handle_refund( WP_REST_Request $request ) {
+
+    error_log('[AgenticPayments] Refund callback received');
+
+    // ---- HMAC VERIFICATION ----
+    // Reuse the SAME verification code you added earlier
+    // (do NOT duplicate logic — extract to helper if you want)
+
+    $signature = $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ?? '';
+    $timestamp = $_SERVER['HTTP_X_AGENTIC_TIMESTAMP'] ?? '';
+
+    if ( ! $signature || ! $timestamp ) {
+        return new WP_REST_Response( [ 'error' => 'Missing signature' ], 401 );
+    }
+
+    if ( abs( time() - intval( $timestamp ) ) > 300 ) {
+        return new WP_REST_Response( [ 'error' => 'Stale request' ], 401 );
+    }
+
+    $raw_body = $request->get_body();
+    $signed_payload = $timestamp . '.' . $raw_body;
+
+    $expected = hash_hmac( 'sha256', $signed_payload, AGENTIC_WEBHOOK_SECRET );
+
+    if ( ! hash_equals( $expected, $signature ) ) {
+        return new WP_REST_Response( [ 'error' => 'Invalid signature' ], 401 );
+    }
+
+    // ---- Parse payload ----
+    $order_id   = absint( $request->get_param( 'order_id' ) );
+    $amount     = floatval( $request->get_param( 'amount' ) );
+    $reason     = sanitize_text_field( $request->get_param( 'reason' ) );
+    $refund_id  = sanitize_text_field( $request->get_param( 'refund_id' ) );
+    $agent_id   = sanitize_text_field( $request->get_param( 'agent_id' ) );
+
+    if ( ! $order_id || ! $amount || ! $refund_id ) {
+        return new WP_REST_Response( [ 'error' => 'Invalid payload' ], 400 );
+    }
+
+    $order = wc_get_order( $order_id );
+
+    if ( ! $order ) {
+        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+    }
+
+    // ---- Ensure correct gateway ----
+    if ( $order->get_payment_method() !== 'agentic' ) {
+        return new WP_REST_Response( [ 'error' => 'Invalid payment method' ], 400 );
+    }
+
+    // ---- IDEMPOTENCY CHECK ----
+    $existing_refunds = $order->get_refunds();
+
+    foreach ( $existing_refunds as $refund ) {
+        if ( $refund->get_meta( '_agentic_refund_id' ) === $refund_id ) {
+            error_log('[AgenticPayments] Idempotent refund hit');
+            return new WP_REST_Response(
+                [
+                    'status'  => 'ok',
+                    'message' => 'Refund already processed',
+                ],
+                200
+            );
+        }
+    }
+
+    // ---- Validate amount ----
+    if ( $amount > $order->get_remaining_refund_amount() ) {
+        return new WP_REST_Response( [ 'error' => 'Refund exceeds remaining amount' ], 400 );
+    }
+
+    // ---- Create WooCommerce refund ----
+    $refund = wc_create_refund( [
+        'amount'     => $amount,
+        'reason'     => $reason ?: 'Agentic refund',
+        'order_id'   => $order_id,
+        'refund_payment' => false, // agent already handled money
+        'restock_items'  => false,
+    ] );
+
+    if ( is_wp_error( $refund ) ) {
+        error_log('[AgenticPayments] Refund failed: ' . $refund->get_error_message());
+        return new WP_REST_Response( [ 'error' => 'Refund failed' ], 500 );
+    }
+
+    // ---- Persist idempotency metadata ----
+    $refund->update_meta_data( '_agentic_refund_id', $refund_id );
+    $refund->update_meta_data( '_agentic_agent_id', $agent_id );
+    $refund->save();
+
+    // ---- Order note ----
+    $order->add_order_note(
+        sprintf(
+            'Agentic refund processed. Amount: %s. Agent: %s. Refund ID: %s',
+            wc_price( $amount ),
+            $agent_id ?: 'unknown',
+            $refund_id
+        )
+    );
+
+    error_log('[AgenticPayments] Refund processed successfully');
+
+    return new WP_REST_Response(
+        [
+            'status'    => 'success',
+            'refund_id' => $refund->get_id(),
         ],
         200
     );
