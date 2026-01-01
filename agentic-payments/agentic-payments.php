@@ -11,9 +11,6 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// TODO: Move this to settings
-define( 'AGENTIC_WEBHOOK_SECRET', 'super_secret_agentic_key_change_me' );
-
 class Agentic_Payments_Plugin {
 
     const OPTION_KEY = 'agentic_payments_options';
@@ -471,6 +468,8 @@ add_action( 'woocommerce_loaded', function() {
                 'woocommerce_update_options_payment_gateways_' . $this->id,
                 array( $this, 'process_admin_options' )
             );
+
+            $this->webhook_secret = $this->get_option( 'webhook_secret' );
         }
 
         public function init_form_fields() {
@@ -491,27 +490,17 @@ add_action( 'woocommerce_loaded', function() {
                     'type'    => 'textarea',
                     'default' => 'Pay through an agentic payment flow.',
                 ),
+
+                'webhook_secret' => [
+                    'title'       => 'Webhook Secret',
+                    'type'        => 'password',
+                    'description' => 'Shared secret used to verify agent callbacks (HMAC).',
+                    'default'     => '',
+                    'desc_tip'    => true,
+                ],
             );
         }
 
-/*
-        public function process_payment( $order_id ) {
-            $order = wc_get_order( $order_id );
-
-            // The agent will later complete the order via REST or a webhook
-            $order->update_status(
-                'on-hold',
-                'Awaiting agentic payment processing.'
-            );
-
-            WC()->cart->empty_cart();
-
-            return array(
-                'result'   => 'success',
-                'redirect' => $this->get_return_url( $order ),
-            );
-        }
-*/
 public function process_payment( $order_id ) {
 
     $order = wc_get_order( $order_id );
@@ -553,6 +542,11 @@ public function process_payment( $order_id ) {
     });
 
 });
+
+function agentic_get_webhook_secret() {
+    $settings = get_option( 'woocommerce_agentic_settings', [] );
+    return $settings['webhook_secret'] ?? '';
+}
 
 add_action( 'rest_api_init', function () {
     register_rest_route(
@@ -724,11 +718,14 @@ $raw_body = $request->get_body();
 $signed_payload = $timestamp . '.' . $raw_body;
 
 // Compute expected signature
-$expected_signature = hash_hmac(
-    'sha256',
-    $signed_payload,
-    AGENTIC_WEBHOOK_SECRET
-);
+$secret = agentic_get_webhook_secret();
+
+if ( empty( $secret ) ) {
+    error_log('[AgenticPayments] Webhook secret not configured');
+    return new WP_REST_Response( [ 'error' => 'Server misconfigured' ], 500 );
+}
+
+$expected_signature = hash_hmac( 'sha256', $signed_payload, $secret );
 
 // Constant-time compare
 if ( ! hash_equals( $expected_signature, $signature ) ) {
@@ -838,7 +835,14 @@ function agentic_handle_refund( WP_REST_Request $request ) {
     $raw_body = $request->get_body();
     $signed_payload = $timestamp . '.' . $raw_body;
 
-    $expected = hash_hmac( 'sha256', $signed_payload, AGENTIC_WEBHOOK_SECRET );
+    $secret = agentic_get_webhook_secret();
+
+if ( empty( $secret ) ) {
+    error_log('[AgenticPayments] Webhook secret not configured');
+    return new WP_REST_Response( [ 'error' => 'Server misconfigured' ], 500 );
+}
+
+$expected = hash_hmac( 'sha256', $signed_payload, $secret );
 
     if ( ! hash_equals( $expected, $signature ) ) {
         return new WP_REST_Response( [ 'error' => 'Invalid signature' ], 401 );
@@ -926,6 +930,20 @@ function agentic_handle_refund( WP_REST_Request $request ) {
         200
     );
 }
+
+add_action( 'admin_notices', function () {
+    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+        return;
+    }
+
+    $settings = get_option( 'woocommerce_agentic_settings', [] );
+
+    if ( empty( $settings['webhook_secret'] ) ) {
+        echo '<div class="notice notice-warning"><p>';
+        echo '<strong>Agentic Payments:</strong> Webhook secret is not set. Agent callbacks will fail.';
+        echo '</p></div>';
+    }
+});
 
 
 
