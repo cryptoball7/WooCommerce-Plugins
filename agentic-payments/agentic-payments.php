@@ -7,11 +7,12 @@ Author: Cryptoball cryptoball7@gmail.com
 Text Domain: agentic-payments
 */
 
-if ( ! defined( 'ABSPATH' ) ) {
+if (!defined('ABSPATH')) {
     exit;
 }
 
-class Agentic_Payments_Plugin {
+class Agentic_Payments_Plugin
+{
 
     const OPTION_KEY = 'agentic_payments_options';
     const REST_NAMESPACE = 'agentic-payments/v1';
@@ -19,133 +20,145 @@ class Agentic_Payments_Plugin {
     private static $instance = null;
     private $options = array();
 
-    public static function instance() {
-        if ( null === self::$instance ) {
+    public static function instance()
+    {
+        if (null === self::$instance) {
             self::$instance = new self();
             self::$instance->init();
         }
         return self::$instance;
     }
 
-    private function maybe_generate_secret() {
-        if ( function_exists( 'wp_generate_password' ) ) {
-            return wp_generate_password( 32, false );
+    private function maybe_generate_secret()
+    {
+        if (function_exists('wp_generate_password')) {
+            return wp_generate_password(32, false);
         }
-        return bin2hex( random_bytes(16) ); // fallback for early load
+        return bin2hex(random_bytes(16)); // fallback for early load
     }
 
-    private function init() {
-        $this->options = get_option( self::OPTION_KEY, array(
+    private function init()
+    {
+        $this->options = get_option(self::OPTION_KEY, array(
             'enabled' => 'yes',
-            'shared_secret' => '',$this->maybe_generate_secret(),
-            'webhook_secret' => '',$this->maybe_generate_secret(),
+            'shared_secret' => '',
+            $this->maybe_generate_secret(),
+            'webhook_secret' => '',
+            $this->maybe_generate_secret(),
             'allowed_agents' => '', // comma-separated allowed agent IDs (optional)
             'log' => 'no',
-        ) );
+        ));
 
-        register_activation_hook( __FILE__, array( $this, 'on_activate' ) );
-        register_uninstall_hook( __FILE__, array( 'Agentic_Payments_Plugin', 'on_uninstall' ) );
+        register_activation_hook(__FILE__, array($this, 'on_activate'));
+        register_uninstall_hook(__FILE__, array('Agentic_Payments_Plugin', 'on_uninstall'));
 
-        add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
-        add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
-        add_action( 'admin_init', array( $this, 'register_settings' ) );
+        add_action('rest_api_init', array($this, 'register_rest_routes'));
+        add_action('admin_menu', array($this, 'register_admin_page'));
+        add_action('admin_init', array($this, 'register_settings'));
 
         // If WooCommerce exists register gateway
-        add_action( 'plugins_loaded', array( $this, 'maybe_register_gateway' ), 20 );
+        add_action('plugins_loaded', array($this, 'maybe_register_gateway'), 20);
 
         // endpoint to accept webhooks from payment processors / agent platform
-        add_action( 'init', array( $this, 'maybe_handle_webhook' ) );
+        add_action('init', array($this, 'maybe_handle_webhook'));
 
-add_action( 'rest_api_init', function () {
-    register_rest_route(
-        'agentic/v1',
-        '/payment-complete',
-        [
-            'methods'             => 'POST',
-            'callback'            => 'agentic_handle_payment_complete',
-            'permission_callback' => '__return_true', // auth handled manually
-        ]
-    );
-});
+        add_action('rest_api_init', function () {
+            register_rest_route(
+                'agentic/v1',
+                '/payment-complete',
+                [
+                    'methods' => 'POST',
+                    'callback' => 'agentic_handle_payment_complete',
+                    'permission_callback' => '__return_true', // auth handled manually
+                ]
+            );
+        });
 
-add_action( 'rest_api_init', function () {
-    register_rest_route(
-        'agentic/v1',
-        '/refund',
-        [
-            'methods'             => 'POST',
-            'callback'            => 'agentic_handle_refund',
-            'permission_callback' => '__return_true', // HMAC handles auth
-        ]
-    );
-});
+        add_action('rest_api_init', function () {
+            register_rest_route(
+                'agentic/v1',
+                '/refund',
+                [
+                    'methods' => 'POST',
+                    'callback' => 'agentic_handle_refund',
+                    'permission_callback' => '__return_true', // HMAC handles auth
+                ]
+            );
+        });
 
     }
 
-    public function on_activate() {
+    public function on_activate()
+    {
         // ensure options exist
-        if ( ! get_option( self::OPTION_KEY ) ) {
-            update_option( self::OPTION_KEY, $this->options );
+        if (!get_option(self::OPTION_KEY)) {
+            update_option(self::OPTION_KEY, $this->options);
         }
     }
 
-    public static function on_uninstall() {
+    public static function on_uninstall()
+    {
         // remove options on uninstall
-        delete_option( self::OPTION_KEY );
+        delete_option(self::OPTION_KEY);
     }
 
-    private function log( $message ) {
-        if ( isset( $this->options['log'] ) && $this->options['log'] === 'yes' ) {
-            if ( ! is_scalar( $message ) ) {
-                $message = print_r( $message, true );
+    private function log($message)
+    {
+        if (isset($this->options['log']) && $this->options['log'] === 'yes') {
+            if (!is_scalar($message)) {
+                $message = print_r($message, true);
             }
-            error_log( '[AgenticPayments] ' . $message );
+            error_log('[AgenticPayments] ' . $message);
         }
     }
 
     /* -------------------------
      * Admin settings UI
      * ------------------------- */
-    public function register_admin_page() {
+    public function register_admin_page()
+    {
         add_options_page(
             'Agentic Payments',
             'Agentic Payments',
             'manage_options',
             'agentic-payments',
-            array( $this, 'render_admin_page' )
+            array($this, 'render_admin_page')
         );
     }
 
-    public function register_settings() {
-        register_setting( 'agentic_payments_group', self::OPTION_KEY, array( $this, 'sanitize_options' ) );
-        add_settings_section( 'agentic_main', 'Agentic Payments Settings', null, 'agentic-payments' );
+    public function register_settings()
+    {
+        register_setting('agentic_payments_group', self::OPTION_KEY, array($this, 'sanitize_options'));
+        add_settings_section('agentic_main', 'Agentic Payments Settings', null, 'agentic-payments');
 
-        add_settings_field( 'enabled', 'Enable Agentic Payments', array( $this, 'field_enabled' ), 'agentic-payments', 'agentic_main' );
-        add_settings_field( 'shared_secret', 'Shared Secret (for agent signing)', array( $this, 'field_shared_secret' ), 'agentic-payments', 'agentic_main' );
-        add_settings_field( 'webhook_secret', 'Webhook Secret (for incoming webhooks)', array( $this, 'field_webhook_secret' ), 'agentic-payments', 'agentic_main' );
-        add_settings_field( 'allowed_agents', 'Allowed Agent IDs (comma-separated)', array( $this, 'field_allowed_agents' ), 'agentic-payments', 'agentic_main' );
-        add_settings_field( 'log', 'Enable Logging', array( $this, 'field_log' ), 'agentic-payments', 'agentic_main' );
+        add_settings_field('enabled', 'Enable Agentic Payments', array($this, 'field_enabled'), 'agentic-payments', 'agentic_main');
+        add_settings_field('shared_secret', 'Shared Secret (for agent signing)', array($this, 'field_shared_secret'), 'agentic-payments', 'agentic_main');
+        add_settings_field('webhook_secret', 'Webhook Secret (for incoming webhooks)', array($this, 'field_webhook_secret'), 'agentic-payments', 'agentic_main');
+        add_settings_field('allowed_agents', 'Allowed Agent IDs (comma-separated)', array($this, 'field_allowed_agents'), 'agentic-payments', 'agentic_main');
+        add_settings_field('log', 'Enable Logging', array($this, 'field_log'), 'agentic-payments', 'agentic_main');
     }
 
-    public function sanitize_options( $input ) {
+    public function sanitize_options($input)
+    {
         $out = array();
-        $out['enabled'] = ( isset( $input['enabled'] ) && $input['enabled'] === 'yes' ) ? 'yes' : 'no';
-        $out['shared_secret'] = sanitize_text_field( $input['shared_secret'] );
-        if ( empty( $out['shared_secret'] ) ) {
+        $out['enabled'] = (isset($input['enabled']) && $input['enabled'] === 'yes') ? 'yes' : 'no';
+        $out['shared_secret'] = sanitize_text_field($input['shared_secret']);
+        if (empty($out['shared_secret'])) {
             $out['shared_secret'] = wp_generate_password(32, false);
         }
-        $out['webhook_secret'] = sanitize_text_field( $input['webhook_secret'] );
-        if ( empty( $out['webhook_secret'] ) ) {
+        $out['webhook_secret'] = sanitize_text_field($input['webhook_secret']);
+        if (empty($out['webhook_secret'])) {
             $out['webhook_secret'] = wp_generate_password(32, false);
         }
-        $out['allowed_agents'] = sanitize_text_field( $input['allowed_agents'] );
-        $out['log'] = ( isset( $input['log'] ) && $input['log'] === 'yes' ) ? 'yes' : 'no';
+        $out['allowed_agents'] = sanitize_text_field($input['allowed_agents']);
+        $out['log'] = (isset($input['log']) && $input['log'] === 'yes') ? 'yes' : 'no';
         $this->options = $out;
         return $out;
     }
 
-    public function render_admin_page() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+    public function render_admin_page()
+    {
+        if (!current_user_can('manage_options')) {
             return;
         }
         ?>
@@ -153,59 +166,72 @@ add_action( 'rest_api_init', function () {
             <h1>Agentic Payments</h1>
             <form method="post" action="options.php">
                 <?php
-                    settings_fields( 'agentic_payments_group' );
-                    do_settings_sections( 'agentic-payments' );
-                    submit_button();
+                settings_fields('agentic_payments_group');
+                do_settings_sections('agentic-payments');
+                submit_button();
                 ?>
             </form>
             <h2>Developer / Agent Info</h2>
-            <p>REST endpoint to initiate payments: <code><?php echo esc_html( rest_url( self::REST_NAMESPACE . '/create' ) ); ?></code></p>
+            <p>REST endpoint to initiate payments:
+                <code><?php echo esc_html(rest_url(self::REST_NAMESPACE . '/create')); ?></code>
+            </p>
             <p>Shared secret (use in HMAC signing):</p>
-            <pre style="background:#fff;padding:8px;border:1px solid #ddd;"><?php echo esc_html( $this->options['shared_secret'] ); ?></pre>
+            <pre
+                style="background:#fff;padding:8px;border:1px solid #ddd;"><?php echo esc_html($this->options['shared_secret']); ?></pre>
             <p>Webhook secret (for verifying incoming webhooks):</p>
-            <pre style="background:#fff;padding:8px;border:1px solid #ddd;"><?php echo esc_html( $this->options['webhook_secret'] ); ?></pre>
-            <p>Allowed agent IDs (optional): <code><?php echo esc_html( $this->options['allowed_agents'] ); ?></code></p>
+            <pre
+                style="background:#fff;padding:8px;border:1px solid #ddd;"><?php echo esc_html($this->options['webhook_secret']); ?></pre>
+            <p>Allowed agent IDs (optional): <code><?php echo esc_html($this->options['allowed_agents']); ?></code></p>
         </div>
         <?php
     }
 
-    public function field_enabled() {
-        $val = ( isset( $this->options['enabled'] ) && $this->options['enabled'] === 'yes' ) ? 'yes' : 'no';
+    public function field_enabled()
+    {
+        $val = (isset($this->options['enabled']) && $this->options['enabled'] === 'yes') ? 'yes' : 'no';
         ?>
-        <select name="<?php echo esc_attr( self::OPTION_KEY ); ?>[enabled]">
-            <option value="yes" <?php selected( $val, 'yes' ); ?>>Yes</option>
-            <option value="no" <?php selected( $val, 'no' ); ?>>No</option>
+        <select name="<?php echo esc_attr(self::OPTION_KEY); ?>[enabled]">
+            <option value="yes" <?php selected($val, 'yes'); ?>>Yes</option>
+            <option value="no" <?php selected($val, 'no'); ?>>No</option>
         </select>
         <?php
     }
 
-    public function field_shared_secret() {
+    public function field_shared_secret()
+    {
         ?>
-        <input type="text" style="width:60%;" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[shared_secret]" value="<?php echo esc_attr( $this->options['shared_secret'] ); ?>" />
+        <input type="text" style="width:60%;" name="<?php echo esc_attr(self::OPTION_KEY); ?>[shared_secret]"
+            value="<?php echo esc_attr($this->options['shared_secret']); ?>" />
         <p class="description">Secret used to sign REST requests from agents (HMAC SHA256).</p>
         <?php
     }
 
-    public function field_webhook_secret() {
+    public function field_webhook_secret()
+    {
         ?>
-        <input type="text" style="width:60%;" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[webhook_secret]" value="<?php echo esc_attr( $this->options['webhook_secret'] ); ?>" />
+        <input type="text" style="width:60%;" name="<?php echo esc_attr(self::OPTION_KEY); ?>[webhook_secret]"
+            value="<?php echo esc_attr($this->options['webhook_secret']); ?>" />
         <p class="description">Secret to verify incoming webhooks from payment processors/agent platforms.</p>
         <?php
     }
 
-    public function field_allowed_agents() {
+    public function field_allowed_agents()
+    {
         ?>
-        <input type="text" style="width:60%;" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[allowed_agents]" value="<?php echo esc_attr( $this->options['allowed_agents'] ); ?>" />
-        <p class="description">Comma-separated list of allowed agent IDs. Leave blank to allow all agents that can sign correctly.</p>
+        <input type="text" style="width:60%;" name="<?php echo esc_attr(self::OPTION_KEY); ?>[allowed_agents]"
+            value="<?php echo esc_attr($this->options['allowed_agents']); ?>" />
+        <p class="description">Comma-separated list of allowed agent IDs. Leave blank to allow all agents that can sign
+            correctly.</p>
         <?php
     }
 
-    public function field_log() {
-        $val = ( isset( $this->options['log'] ) && $this->options['log'] === 'yes' ) ? 'yes' : 'no';
+    public function field_log()
+    {
+        $val = (isset($this->options['log']) && $this->options['log'] === 'yes') ? 'yes' : 'no';
         ?>
-        <select name="<?php echo esc_attr( self::OPTION_KEY ); ?>[log]">
-            <option value="no" <?php selected( $val, 'no' ); ?>>No</option>
-            <option value="yes" <?php selected( $val, 'yes' ); ?>>Yes</option>
+        <select name="<?php echo esc_attr(self::OPTION_KEY); ?>[log]">
+            <option value="no" <?php selected($val, 'no'); ?>>No</option>
+            <option value="yes" <?php selected($val, 'yes'); ?>>Yes</option>
         </select>
         <p class="description">Enable debug logging to error_log (useful during setup; disable in production).</p>
         <?php
@@ -214,12 +240,13 @@ add_action( 'rest_api_init', function () {
     /* -------------------------
      * REST API
      * ------------------------- */
-    public function register_rest_routes() {
-        register_rest_route( self::REST_NAMESPACE, '/create', array(
-            'methods'  => 'POST',
-            'callback' => array( $this, 'rest_create_payment' ),
+    public function register_rest_routes()
+    {
+        register_rest_route(self::REST_NAMESPACE, '/create', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'rest_create_payment'),
             'permission_callback' => '__return_true', // we verify via HMAC within callback
-        ) );
+        ));
     }
 
     /**
@@ -234,79 +261,80 @@ add_action( 'rest_api_init', function () {
      *   "metadata": {}
      * }
      */
-    public function rest_create_payment( WP_REST_Request $request ) {
+    public function rest_create_payment(WP_REST_Request $request)
+    {
         $params = $request->get_json_params();
-        if ( ! is_array( $params ) ) {
-            return new WP_REST_Response( array( 'error' => 'invalid_json' ), 400 );
+        if (!is_array($params)) {
+            return new WP_REST_Response(array('error' => 'invalid_json'), 400);
         }
 
         // Required fields
-        $agent_id = isset( $params['agent_id'] ) ? sanitize_text_field( $params['agent_id'] ) : '';
-        $signature = isset( $params['signature'] ) ? sanitize_text_field( $params['signature'] ) : '';
-        if ( empty( $agent_id ) || empty( $signature ) ) {
-            return new WP_REST_Response( array( 'error' => 'missing_agent_or_signature' ), 400 );
+        $agent_id = isset($params['agent_id']) ? sanitize_text_field($params['agent_id']) : '';
+        $signature = isset($params['signature']) ? sanitize_text_field($params['signature']) : '';
+        if (empty($agent_id) || empty($signature)) {
+            return new WP_REST_Response(array('error' => 'missing_agent_or_signature'), 400);
         }
 
         // verify allowed agents if set
-        if ( ! empty( $this->options['allowed_agents'] ) ) {
-            $allowed = array_map( 'trim', explode( ',', $this->options['allowed_agents'] ) );
-            if ( ! in_array( $agent_id, $allowed, true ) ) {
-                $this->log( "Rejected agent {$agent_id}: not in allowed list." );
-                return new WP_REST_Response( array( 'error' => 'agent_not_allowed' ), 403 );
+        if (!empty($this->options['allowed_agents'])) {
+            $allowed = array_map('trim', explode(',', $this->options['allowed_agents']));
+            if (!in_array($agent_id, $allowed, true)) {
+                $this->log("Rejected agent {$agent_id}: not in allowed list.");
+                return new WP_REST_Response(array('error' => 'agent_not_allowed'), 403);
             }
         }
 
         // Verify signature: signature should be HMAC SHA256 over canonicalized payload (sorted keys) without the signature field
         $payload_for_sign = $params;
-        unset( $payload_for_sign['signature'] );
+        unset($payload_for_sign['signature']);
         // canonicalize: json encode with sorted keys
-        ksort_recursive( $payload_for_sign );
-        $canonical = wp_json_encode( $payload_for_sign );
+        ksort_recursive($payload_for_sign);
+        $canonical = wp_json_encode($payload_for_sign);
 
-        $expected = hash_hmac( 'sha256', $canonical, $this->options['shared_secret'] );
+        $expected = hash_hmac('sha256', $canonical, $this->options['shared_secret']);
 
-        if ( ! hash_equals( $expected, $signature ) ) {
-            $this->log( "Signature mismatch. Expected {$expected}, got {$signature}. Canonical: {$canonical}" );
-            return new WP_REST_Response( array( 'error' => 'invalid_signature' ), 403 );
+        if (!hash_equals($expected, $signature)) {
+            $this->log("Signature mismatch. Expected {$expected}, got {$signature}. Canonical: {$canonical}");
+            return new WP_REST_Response(array('error' => 'invalid_signature'), 403);
         }
 
         // Now process payment or create order
-        $order_id = isset( $params['order_id'] ) ? intval( $params['order_id'] ) : 0;
-        $amount = isset( $params['amount'] ) ? $params['amount'] : null;
-        $currency = isset( $params['currency'] ) ? sanitize_text_field( $params['currency'] ) : null;
-        $description = isset( $params['description'] ) ? sanitize_text_field( $params['description'] ) : '';
-        $metadata = isset( $params['metadata'] ) && is_array( $params['metadata'] ) ? $params['metadata'] : array();
+        $order_id = isset($params['order_id']) ? intval($params['order_id']) : 0;
+        $amount = isset($params['amount']) ? $params['amount'] : null;
+        $currency = isset($params['currency']) ? sanitize_text_field($params['currency']) : null;
+        $description = isset($params['description']) ? sanitize_text_field($params['description']) : '';
+        $metadata = isset($params['metadata']) && is_array($params['metadata']) ? $params['metadata'] : array();
 
-        do_action( 'agentic_payment_initiated_raw', $params ); // raw hook for logging / 3rd party
+        do_action('agentic_payment_initiated_raw', $params); // raw hook for logging / 3rd party
 
         // If WooCommerce available and order_id provided -> attempt to process via gateway; otherwise simulate/create simple record
-        if ( class_exists( 'WooCommerce' ) && $order_id ) {
-            $order = wc_get_order( $order_id );
-            if ( ! $order ) {
-                return new WP_REST_Response( array( 'error' => 'order_not_found' ), 404 );
+        if (class_exists('WooCommerce') && $order_id) {
+            $order = wc_get_order($order_id);
+            if (!$order) {
+                return new WP_REST_Response(array('error' => 'order_not_found'), 404);
             }
 
             // Developer can hook into this to process via custom gateway
-            $result = apply_filters( 'agentic_process_woocommerce_order', array(
+            $result = apply_filters('agentic_process_woocommerce_order', array(
                 'success' => true,
                 'transaction_id' => 'agentic_wc_' . time() . '_' . wp_generate_password(6, false),
-            ), $order, $params );
+            ), $order, $params);
 
-            if ( is_array( $result ) && ! empty( $result['success'] ) ) {
+            if (is_array($result) && !empty($result['success'])) {
                 // mark order paid if requested
-                if ( isset( $result['mark_paid'] ) && $result['mark_paid'] ) {
-                    $order->payment_complete( $result['transaction_id'] );
+                if (isset($result['mark_paid']) && $result['mark_paid']) {
+                    $order->payment_complete($result['transaction_id']);
                 }
 
-                do_action( 'agentic_payment_processed', $order, $result );
-                return new WP_REST_Response( array(
+                do_action('agentic_payment_processed', $order, $result);
+                return new WP_REST_Response(array(
                     'success' => true,
                     'order_id' => $order_id,
                     'transaction_id' => $result['transaction_id'],
-                ), 200 );
+                ), 200);
             } else {
-                $this->log( 'agentic process for order returned failure: ' . print_r( $result, true ) );
-                return new WP_REST_Response( array( 'error' => 'processing_failed' ), 500 );
+                $this->log('agentic process for order returned failure: ' . print_r($result, true));
+                return new WP_REST_Response(array('error' => 'processing_failed'), 500);
             }
 
         } else {
@@ -323,44 +351,45 @@ add_action( 'rest_api_init', function () {
                     'description' => $description,
                     'metadata' => $metadata,
                     'transaction_id' => $txn_id,
-                    'created_at' => current_time( 'mysql' ),
+                    'created_at' => current_time('mysql'),
                 )
             );
-            $post_id = wp_insert_post( $record );
+            $post_id = wp_insert_post($record);
 
-            do_action( 'agentic_payment_processed_nonwc', $post_id, $txn_id, $params );
+            do_action('agentic_payment_processed_nonwc', $post_id, $txn_id, $params);
 
-            return new WP_REST_Response( array(
+            return new WP_REST_Response(array(
                 'success' => true,
                 'transaction_id' => $txn_id,
                 'record_id' => $post_id,
-            ), 200 );
+            ), 200);
         }
     }
 
     /* -------------------------
      * Simple webhook handler (optional)
      * ------------------------- */
-    public function maybe_handle_webhook() {
+    public function maybe_handle_webhook()
+    {
         // Example: if someone POSTs to /?agentic_webhook=1 we accept it
-        if ( isset( $_GET['agentic_webhook'] ) && $_GET['agentic_webhook'] == '1' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-            $raw = file_get_contents( 'php://input' );
-            $sig = isset( $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ) ) : '';
+        if (isset($_GET['agentic_webhook']) && $_GET['agentic_webhook'] == '1' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $raw = file_get_contents('php://input');
+            $sig = isset($_SERVER['HTTP_X_AGENTIC_SIGNATURE']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_X_AGENTIC_SIGNATURE'])) : '';
 
             // verify
-            $expected = hash_hmac( 'sha256', $raw, $this->options['webhook_secret'] );
-            if ( ! hash_equals( $expected, $sig ) ) {
-                status_header( 403 );
+            $expected = hash_hmac('sha256', $raw, $this->options['webhook_secret']);
+            if (!hash_equals($expected, $sig)) {
+                status_header(403);
                 echo 'invalid_signature';
                 exit;
             }
 
-            $payload = json_decode( $raw, true );
+            $payload = json_decode($raw, true);
             // you may want to verify payload structure
-            $this->log( 'Received webhook: ' . print_r( $payload, true ) );
-            do_action( 'agentic_webhook_received', $payload );
+            $this->log('Received webhook: ' . print_r($payload, true));
+            do_action('agentic_webhook_received', $payload);
 
-            status_header( 200 );
+            status_header(200);
             echo 'ok';
             exit;
         }
@@ -369,45 +398,49 @@ add_action( 'rest_api_init', function () {
     /* -------------------------
      * Register includes: custom post type for non-Woo payments
      * ------------------------- */
-    public function register_post_type() {
-        register_post_type( 'agentic_payment', array(
+    public function register_post_type()
+    {
+        register_post_type('agentic_payment', array(
             'labels' => array(
                 'name' => 'Agentic Payments',
                 'singular_name' => 'Agentic Payment'
             ),
             'public' => false,
             'show_ui' => true,
-            'supports' => array( 'title' ),
-        ) );
+            'supports' => array('title'),
+        ));
     }
 
     /* -------------------------
      * WooCommerce Gateway
      * ------------------------- */
-public function maybe_register_gateway_nondebug() {
+    public function maybe_register_gateway_nondebug()
+    {
 
-    // ensure custom post type still registers
-    add_action( 'init', array( $this, 'register_post_type' ) );
+        // ensure custom post type still registers
+        add_action('init', array($this, 'register_post_type'));
 
-    add_action( 'woocommerce_loaded', function() {
-        add_filter( 'woocommerce_payment_gateways', function( $methods ) {
-            $methods[] = 'WC_Gateway_Agentic';
-            return $methods;
-        } );
-    } );
-}
+        add_action('woocommerce_loaded', function () {
+            add_filter('woocommerce_payment_gateways', function ($methods) {
+                $methods[] = 'WC_Gateway_Agentic';
+                return $methods;
+            });
+        });
+    }
 
-public function maybe_register_gateway() {
+    public function maybe_register_gateway()
+    {
 
-    // Still register post type
-    add_action( 'init', array( $this, 'register_post_type' ) );
+        // Still register post type
+        add_action('init', array($this, 'register_post_type'));
 
-}
-
-
+    }
 
 
-    public function add_wc_gateway( $gateways ) {
+
+
+    public function add_wc_gateway($gateways)
+    {
         $gateways[] = 'WC_Gateway_Agentic';
         return $gateways;
     }
@@ -416,14 +449,15 @@ public function maybe_register_gateway() {
 /* -------------------------
  * Utility: recursive ksort for canonicalization
  * ------------------------- */
-function ksort_recursive( &$array ) {
-    if ( ! is_array( $array ) ) {
+function ksort_recursive(&$array)
+{
+    if (!is_array($array)) {
         return;
     }
-    ksort( $array );
-    foreach ( $array as &$value ) {
-        if ( is_array( $value ) ) {
-            ksort_recursive( $value );
+    ksort($array);
+    foreach ($array as &$value) {
+        if (is_array($value)) {
+            ksort_recursive($value);
         }
     }
 }
@@ -432,169 +466,176 @@ function ksort_recursive( &$array ) {
 // WooCommerce Gateway Class
 // -------------------------
 
-add_action( 'woocommerce_loaded', function() {
+add_action('woocommerce_loaded', function () {
 
-    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+    if (!class_exists('WC_Payment_Gateway')) {
         return;
     }
 
     // Load the gateway file if you have it in includes/
     // require_once plugin_dir_path(__FILE__) . 'includes/class-wc-gateway-agentic.php';
 
-    if ( ! class_exists( 'WC_Gateway_Agentic' ) ) {
+    if (!class_exists('WC_Gateway_Agentic')) {
 
-        class WC_Gateway_Agentic extends WC_Payment_Gateway {
+        class WC_Gateway_Agentic extends WC_Payment_Gateway
+        {
 
-        public function __construct() {
-            $this->id                 = 'agentic';
-            $this->method_title       = 'Agentic Payments';
-            $this->method_description = 'Accept agent-initiated payments via the Agentic Payments plugin.';
-            $this->has_fields         = false;
+            public function __construct()
+            {
+                $this->id = 'agentic';
+                $this->method_title = 'Agentic Payments';
+                $this->method_description = 'Accept agent-initiated payments via the Agentic Payments plugin.';
+                $this->has_fields = false;
 
-            $this->init_form_fields();
-            $this->init_settings();
+                $this->init_form_fields();
+                $this->init_settings();
 
-            $this->enabled = $this->get_option('enabled', 'yes');
+                $this->enabled = $this->get_option('enabled', 'yes');
 
-            $this->title       = $this->get_option( 'title', 'Agentic (programmatic)' );
-            $this->description = $this->get_option( 'description', '' );
+                $this->title = $this->get_option('title', 'Agentic (programmatic)');
+                $this->description = $this->get_option('description', '');
 
-            $this->supports = [
-                'products',
-                'default_credit_card_form'
-            ];
+                $this->supports = [
+                    'products',
+                    'default_credit_card_form'
+                ];
 
-            add_action(
-                'woocommerce_update_options_payment_gateways_' . $this->id,
-                array( $this, 'process_admin_options' )
-            );
+                add_action(
+                    'woocommerce_update_options_payment_gateways_' . $this->id,
+                    array($this, 'process_admin_options')
+                );
 
-            $this->webhook_secret = $this->get_option( 'webhook_secret' );
+                $this->webhook_secret = $this->get_option('webhook_secret');
+            }
+
+            public function init_form_fields()
+            {
+                $this->form_fields = array(
+                    'enabled' => array(
+                        'title' => 'Enable/Disable',
+                        'type' => 'checkbox',
+                        'label' => 'Enable Agentic payment gateway',
+                        'default' => 'no',
+                    ),
+                    'title' => array(
+                        'title' => 'Title',
+                        'type' => 'text',
+                        'default' => 'Agentic (programmatic)',
+                    ),
+                    'description' => array(
+                        'title' => 'Description',
+                        'type' => 'textarea',
+                        'default' => 'Pay through an agentic payment flow.',
+                    ),
+
+                    'webhook_secret' => [
+                        'title' => 'Webhook Secret',
+                        'type' => 'password',
+                        'description' => 'Shared secret used to verify agent callbacks (HMAC).',
+                        'default' => '',
+                        'desc_tip' => true,
+                    ],
+                );
+            }
+
+            public function process_payment($order_id)
+            {
+
+                $order = wc_get_order($order_id);
+
+                $order->update_status(
+                    'pending',
+                    'Awaiting agentic payment confirmation'
+                );
+
+                return [
+                    'result' => 'success',
+                    'redirect' => $this->get_return_url($order),
+                ];
+            }
+
+
+            public function mark_order_paid($order_id)
+            {
+                $order = wc_get_order($order_id);
+                $order->payment_complete();
+            }
+
+
         }
-
-        public function init_form_fields() {
-            $this->form_fields = array(
-                'enabled' => array(
-                    'title'   => 'Enable/Disable',
-                    'type'    => 'checkbox',
-                    'label'   => 'Enable Agentic payment gateway',
-                    'default' => 'no',
-                ),
-                'title' => array(
-                    'title'   => 'Title',
-                    'type'    => 'text',
-                    'default' => 'Agentic (programmatic)',
-                ),
-                'description' => array(
-                    'title'   => 'Description',
-                    'type'    => 'textarea',
-                    'default' => 'Pay through an agentic payment flow.',
-                ),
-
-                'webhook_secret' => [
-                    'title'       => 'Webhook Secret',
-                    'type'        => 'password',
-                    'description' => 'Shared secret used to verify agent callbacks (HMAC).',
-                    'default'     => '',
-                    'desc_tip'    => true,
-                ],
-            );
-        }
-
-public function process_payment( $order_id ) {
-
-    $order = wc_get_order( $order_id );
-
-    $order->update_status(
-        'pending',
-        'Awaiting agentic payment confirmation'
-    );
-
-    return [
-        'result'   => 'success',
-        'redirect' => $this->get_return_url( $order ),
-    ];
-}
-
-
-        public function mark_order_paid( $order_id ) {
-          $order = wc_get_order( $order_id );
-          $order->payment_complete();
-        }
-
 
     }
 
-}
-
     // Now register the gateway
-    add_filter( 'woocommerce_payment_gateways', function( $gateways ) {
+    add_filter('woocommerce_payment_gateways', function ($gateways) {
         error_log('[AgenticPayments] Registering gateway via filter');
         $gateways[] = 'WC_Gateway_Agentic';
         return $gateways;
     });
 
-    add_action( 'woocommerce_blocks_loaded', function() {
+    add_action('woocommerce_blocks_loaded', function () {
 
-    if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
-        return;
-    }
+        if (!class_exists(Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class)) {
+            return;
+        }
     });
 
 });
 
-function agentic_get_webhook_secret() {
-    $settings = get_option( 'woocommerce_agentic_settings', [] );
+function agentic_get_webhook_secret()
+{
+    $settings = get_option('woocommerce_agentic_settings', []);
     return $settings['webhook_secret'] ?? '';
 }
 
-add_action( 'rest_api_init', function () {
+add_action('rest_api_init', function () {
     register_rest_route(
         'agentic/v1',
         '/order-status/(?P<order_id>\d+)',
         [
-            'methods'             => 'GET',
-            'callback'            => 'agentic_check_order_status',
+            'methods' => 'GET',
+            'callback' => 'agentic_check_order_status',
             'permission_callback' => '__return_true',
         ]
     );
 });
 
-function agentic_check_order_status( WP_REST_Request $request ) {
+function agentic_check_order_status(WP_REST_Request $request)
+{
 
-    $order_id = absint( $request['order_id'] );
-    $order    = wc_get_order( $order_id );
+    $order_id = absint($request['order_id']);
+    $order = wc_get_order($order_id);
 
-    if ( ! $order ) {
-        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+    if (!$order) {
+        return new WP_REST_Response(['error' => 'Order not found'], 404);
     }
 
     return new WP_REST_Response(
         [
-            'status'      => $order->get_status(),
-            'is_paid'     => $order->is_paid(),
-            'completed'   => (bool) $order->get_meta( '_agentic_completed' ),
+            'status' => $order->get_status(),
+            'is_paid' => $order->is_paid(),
+            'completed' => (bool) $order->get_meta('_agentic_completed'),
         ],
         200
     );
 }
 
-add_action( 'wp_enqueue_scripts', function () {
+add_action('wp_enqueue_scripts', function () {
     wp_enqueue_script(
         'agentic-polling',
-        plugins_url( '/assets/js/agentic-polling.js', __FILE__ ),
+        plugins_url('/assets/js/agentic-polling.js', __FILE__),
         [],
         '1.0',
         true
     );
 });
 
-add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
+add_action('woocommerce_thankyou_agentic', function ($order_id) {
 
-    $order = wc_get_order( $order_id );
+    $order = wc_get_order($order_id);
 
     // If order is already completed, do NOT enqueue polling
-    if ( $order && $order->has_status( 'completed' ) ) {
+    if ($order && $order->has_status('completed')) {
         echo '<p><strong>Payment complete.</strong></p>';
         return;
     }
@@ -607,7 +648,7 @@ add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
 
     wp_enqueue_script(
         'agentic-polling',
-        plugins_url( '/assets/js/agentic-polling.js', __FILE__ ),
+        plugins_url('/assets/js/agentic-polling.js', __FILE__),
         [],
         '1.0',
         true
@@ -624,25 +665,26 @@ add_action( 'woocommerce_thankyou_agentic', function ( $order_id ) {
 
 
 
-add_action('init', function() {
-    if ( isset($_GET['agentic_test_payment']) ) {
+add_action('init', function () {
+    if (isset($_GET['agentic_test_payment'])) {
         $order_id = absint($_GET['agentic_test_payment']);
-        $gateway  = new WC_Gateway_Agentic();
-        $gateway->mark_order_paid( $order_id );
+        $gateway = new WC_Gateway_Agentic();
+        $gateway->mark_order_paid($order_id);
         echo "Order $order_id marked paid.";
         exit;
     }
 });
 
-add_action('rest_api_init', function() {
+add_action('rest_api_init', function () {
     register_rest_route('agentic/v1', '/confirm-payment', [
-        'methods'  => 'POST',
+        'methods' => 'POST',
         'callback' => 'agentic_confirm_payment_handler',
         'permission_callback' => '__return_true',
     ]);
 });
 
-function agentic_confirm_payment_handler( WP_REST_Request $request ) {
+function agentic_confirm_payment_handler(WP_REST_Request $request)
+{
 
     $order_id = $request->get_param('order_id');
 
@@ -657,19 +699,19 @@ function agentic_confirm_payment_handler( WP_REST_Request $request ) {
 
 
 
-add_action('woocommerce_blocks_loaded', function() {
+add_action('woocommerce_blocks_loaded', function () {
 
-    if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
+    if (!class_exists(Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class)) {
         return;
     }
 
     add_action(
         'woocommerce_blocks_payment_method_type_registration',
-        function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
+        function (Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry) {
 
             require_once plugin_dir_path(__FILE__) . 'includes/class-wc-agentic-blocks.php';
 
-            $registry->register( new WC_Agentic_Blocks () );
+            $registry->register(new WC_Agentic_Blocks());
         }
     );
 });
@@ -679,91 +721,112 @@ add_action('woocommerce_blocks_loaded', function() {
 
 
 
-add_action("init" /*"wp_enqueue_script"*/, function () {
+add_action("init" /*"wp_enqueue_script"*/ , function () {
 
     wp_register_script(
         'agentic-blocks',
         plugins_url('/assets/js/blocks-payment.js', __FILE__),
-        [ 'wc-blocks-registry', 'wp-element', 'wp-i18n' ],
+        ['wc-blocks-registry', 'wp-element', 'wp-i18n'],
         '1.0.0',
         true
     );
 
 });
 
-function agentic_handle_payment_complete( WP_REST_Request $request ) {
+function agentic_verify_webhook( WP_REST_Request $request ) {
+
+    $secret = agentic_get_webhook_secret();
+    if ( empty( $secret ) ) {
+        return new WP_Error( 'agentic_no_secret', 'Webhook secret not configured', [ 'status' => 500 ] );
+    }
+
+    $signature = $request->get_header( 'x-agentic-signature' );
+    $timestamp = $request->get_header( 'x-agentic-timestamp' );
+
+    if ( ! $signature || ! $timestamp ) {
+        return new WP_Error( 'agentic_missing_headers', 'Missing signature headers', [ 'status' => 401 ] );
+    }
+
+    // Optional: reject old requests (5 min window)
+    if ( abs( time() - intval( $timestamp ) ) > 300 ) {
+        return new WP_Error( 'agentic_stale_request', 'Request timestamp too old', [ 'status' => 401 ] );
+    }
+
+    $body = $request->get_body();
+    $payload = $timestamp . '.' . $body;
+    $expected = hash_hmac( 'sha256', $payload, $secret );
+
+    if ( ! hash_equals( $expected, $signature ) ) {
+        return new WP_Error( 'agentic_bad_signature', 'Invalid signature', [ 'status' => 401 ] );
+    }
+
+    return true;
+}
+
+function agentic_handle_payment_complete(WP_REST_Request $request)
+{
 
     error_log('[AgenticPayments] Callback received');
 
     // ---- HMAC SIGNATURE VERIFICATION ----
 
-$signature = $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ?? '';
-$timestamp = $_SERVER['HTTP_X_AGENTIC_TIMESTAMP'] ?? '';
+    $signature = $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ?? '';
+    $timestamp = $_SERVER['HTTP_X_AGENTIC_TIMESTAMP'] ?? '';
 
-if ( ! $signature || ! $timestamp ) {
-    error_log('[AgenticPayments] Missing HMAC headers');
-    return new WP_REST_Response( [ 'error' => 'Missing signature' ], 401 );
-}
+    if (!$signature || !$timestamp) {
+        error_log('[AgenticPayments] Missing HMAC headers');
+        return new WP_REST_Response(['error' => 'Missing signature'], 401);
+    }
 
-// Prevent replay attacks (5 min window)
-if ( abs( time() - intval( $timestamp ) ) > 300 ) {
-    error_log('[AgenticPayments] Stale request timestamp');
-    return new WP_REST_Response( [ 'error' => 'Stale request' ], 401 );
-}
+    // Prevent replay attacks (5 min window)
+    if (abs(time() - intval($timestamp)) > 300) {
+        error_log('[AgenticPayments] Stale request timestamp');
+        return new WP_REST_Response(['error' => 'Stale request'], 401);
+    }
 
-// Get raw request body
-$raw_body = $request->get_body();
+    // Get raw request body
+    $raw_body = $request->get_body();
 
-// Build signed payload
-$signed_payload = $timestamp . '.' . $raw_body;
+    // Build signed payload
+    $signed_payload = $timestamp . '.' . $raw_body;
 
-// Compute expected signature
-$secret = agentic_get_webhook_secret();
+    // Compute expected signature
+    $verified = agentic_verify_webhook($request);
+    if (is_wp_error($verified)) {
+        return $verified;
+    }
 
-if ( empty( $secret ) ) {
-    error_log('[AgenticPayments] Webhook secret not configured');
-    return new WP_REST_Response( [ 'error' => 'Server misconfigured' ], 500 );
-}
-
-$expected_signature = hash_hmac( 'sha256', $signed_payload, $secret );
-
-// Constant-time compare
-if ( ! hash_equals( $expected_signature, $signature ) ) {
-    error_log('[AgenticPayments] Invalid HMAC signature');
-    return new WP_REST_Response( [ 'error' => 'Invalid signature' ], 401 );
-}
-
-error_log('[AgenticPayments] HMAC signature verified');
+    error_log('[AgenticPayments] HMAC signature verified');
 
 
     // ---- Parse payload ----
-    $order_id       = absint( $request->get_param( 'order_id' ) );
-    $transaction_id = sanitize_text_field( $request->get_param( 'transaction_id' ) );
-    $agent_id       = sanitize_text_field( $request->get_param( 'agent_id' ) );
+    $order_id = absint($request->get_param('order_id'));
+    $transaction_id = sanitize_text_field($request->get_param('transaction_id'));
+    $agent_id = sanitize_text_field($request->get_param('agent_id'));
 
-    if ( ! $order_id || ! $transaction_id ) {
+    if (!$order_id || !$transaction_id) {
         error_log('[AgenticPayments] Missing order_id or transaction_id');
-        return new WP_REST_Response( [ 'error' => 'Invalid payload' ], 400 );
+        return new WP_REST_Response(['error' => 'Invalid payload'], 400);
     }
 
-    $order = wc_get_order( $order_id );
+    $order = wc_get_order($order_id);
 
-    if ( ! $order ) {
+    if (!$order) {
         error_log('[AgenticPayments] Order not found: ' . $order_id);
-        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+        return new WP_REST_Response(['error' => 'Order not found'], 404);
     }
 
     error_log('[AgenticPayments] Processing order ' . $order_id);
 
     // ---- IDEMPOTENCY CHECK ----
-    $already_completed = $order->get_meta( '_agentic_completed' );
+    $already_completed = $order->get_meta('_agentic_completed');
 
-    if ( $already_completed ) {
+    if ($already_completed) {
         error_log('[AgenticPayments] Idempotent hit — order already completed');
 
         return new WP_REST_Response(
             [
-                'status'  => 'ok',
+                'status' => 'ok',
                 'message' => 'Order already processed',
             ],
             200
@@ -771,26 +834,26 @@ error_log('[AgenticPayments] HMAC signature verified');
     }
 
     // ---- Optional: validate payment method ----
-    if ( $order->get_payment_method() !== 'agentic' ) {
+    if ($order->get_payment_method() !== 'agentic') {
         error_log('[AgenticPayments] Payment method mismatch');
-        return new WP_REST_Response( [ 'error' => 'Invalid payment method' ], 400 );
+        return new WP_REST_Response(['error' => 'Invalid payment method'], 400);
     }
 
     // ---- Mark paid ----
     error_log('[AgenticPayments] Calling payment_complete');
 
-    $order->payment_complete( $transaction_id );
+    $order->payment_complete($transaction_id);
 
     // ---- Force completed if needed ----
-    if ( $order->has_status( 'processing' ) ) {
+    if ($order->has_status('processing')) {
         error_log('[AgenticPayments] Forcing status to completed');
-        $order->update_status( 'completed', 'Agentic payment finalized' );
+        $order->update_status('completed', 'Agentic payment finalized');
     }
 
     // ---- Persist idempotency flag ----
-    $order->update_meta_data( '_agentic_completed', time() );
-    $order->update_meta_data( '_agentic_transaction_id', $transaction_id );
-    $order->update_meta_data( '_agentic_agent_id', $agent_id );
+    $order->update_meta_data('_agentic_completed', time());
+    $order->update_meta_data('_agentic_transaction_id', $transaction_id);
+    $order->update_meta_data('_agentic_agent_id', $agent_id);
     $order->save();
 
     // ---- Audit trail ----
@@ -806,14 +869,15 @@ error_log('[AgenticPayments] HMAC signature verified');
 
     return new WP_REST_Response(
         [
-            'status'   => 'success',
+            'status' => 'success',
             'order_id' => $order_id,
         ],
         200
     );
 }
 
-function agentic_handle_refund( WP_REST_Request $request ) {
+function agentic_handle_refund(WP_REST_Request $request)
+{
 
     error_log('[AgenticPayments] Refund callback received');
 
@@ -824,61 +888,53 @@ function agentic_handle_refund( WP_REST_Request $request ) {
     $signature = $_SERVER['HTTP_X_AGENTIC_SIGNATURE'] ?? '';
     $timestamp = $_SERVER['HTTP_X_AGENTIC_TIMESTAMP'] ?? '';
 
-    if ( ! $signature || ! $timestamp ) {
-        return new WP_REST_Response( [ 'error' => 'Missing signature' ], 401 );
+    if (!$signature || !$timestamp) {
+        return new WP_REST_Response(['error' => 'Missing signature'], 401);
     }
 
-    if ( abs( time() - intval( $timestamp ) ) > 300 ) {
-        return new WP_REST_Response( [ 'error' => 'Stale request' ], 401 );
+    if (abs(time() - intval($timestamp)) > 300) {
+        return new WP_REST_Response(['error' => 'Stale request'], 401);
     }
 
     $raw_body = $request->get_body();
     $signed_payload = $timestamp . '.' . $raw_body;
 
-    $secret = agentic_get_webhook_secret();
-
-if ( empty( $secret ) ) {
-    error_log('[AgenticPayments] Webhook secret not configured');
-    return new WP_REST_Response( [ 'error' => 'Server misconfigured' ], 500 );
-}
-
-$expected = hash_hmac( 'sha256', $signed_payload, $secret );
-
-    if ( ! hash_equals( $expected, $signature ) ) {
-        return new WP_REST_Response( [ 'error' => 'Invalid signature' ], 401 );
+    $verified = agentic_verify_webhook($request);
+    if (is_wp_error($verified)) {
+        return $verified;
     }
 
     // ---- Parse payload ----
-    $order_id   = absint( $request->get_param( 'order_id' ) );
-    $amount     = floatval( $request->get_param( 'amount' ) );
-    $reason     = sanitize_text_field( $request->get_param( 'reason' ) );
-    $refund_id  = sanitize_text_field( $request->get_param( 'refund_id' ) );
-    $agent_id   = sanitize_text_field( $request->get_param( 'agent_id' ) );
+    $order_id = absint($request->get_param('order_id'));
+    $amount = floatval($request->get_param('amount'));
+    $reason = sanitize_text_field($request->get_param('reason'));
+    $refund_id = sanitize_text_field($request->get_param('refund_id'));
+    $agent_id = sanitize_text_field($request->get_param('agent_id'));
 
-    if ( ! $order_id || ! $amount || ! $refund_id ) {
-        return new WP_REST_Response( [ 'error' => 'Invalid payload' ], 400 );
+    if (!$order_id || !$amount || !$refund_id) {
+        return new WP_REST_Response(['error' => 'Invalid payload'], 400);
     }
 
-    $order = wc_get_order( $order_id );
+    $order = wc_get_order($order_id);
 
-    if ( ! $order ) {
-        return new WP_REST_Response( [ 'error' => 'Order not found' ], 404 );
+    if (!$order) {
+        return new WP_REST_Response(['error' => 'Order not found'], 404);
     }
 
     // ---- Ensure correct gateway ----
-    if ( $order->get_payment_method() !== 'agentic' ) {
-        return new WP_REST_Response( [ 'error' => 'Invalid payment method' ], 400 );
+    if ($order->get_payment_method() !== 'agentic') {
+        return new WP_REST_Response(['error' => 'Invalid payment method'], 400);
     }
 
     // ---- IDEMPOTENCY CHECK ----
     $existing_refunds = $order->get_refunds();
 
-    foreach ( $existing_refunds as $refund ) {
-        if ( $refund->get_meta( '_agentic_refund_id' ) === $refund_id ) {
+    foreach ($existing_refunds as $refund) {
+        if ($refund->get_meta('_agentic_refund_id') === $refund_id) {
             error_log('[AgenticPayments] Idempotent refund hit');
             return new WP_REST_Response(
                 [
-                    'status'  => 'ok',
+                    'status' => 'ok',
                     'message' => 'Refund already processed',
                 ],
                 200
@@ -887,34 +943,34 @@ $expected = hash_hmac( 'sha256', $signed_payload, $secret );
     }
 
     // ---- Validate amount ----
-    if ( $amount > $order->get_remaining_refund_amount() ) {
-        return new WP_REST_Response( [ 'error' => 'Refund exceeds remaining amount' ], 400 );
+    if ($amount > $order->get_remaining_refund_amount()) {
+        return new WP_REST_Response(['error' => 'Refund exceeds remaining amount'], 400);
     }
 
     // ---- Create WooCommerce refund ----
-    $refund = wc_create_refund( [
-        'amount'     => $amount,
-        'reason'     => $reason ?: 'Agentic refund',
-        'order_id'   => $order_id,
+    $refund = wc_create_refund([
+        'amount' => $amount,
+        'reason' => $reason ?: 'Agentic refund',
+        'order_id' => $order_id,
         'refund_payment' => false, // agent already handled money
-        'restock_items'  => false,
-    ] );
+        'restock_items' => false,
+    ]);
 
-    if ( is_wp_error( $refund ) ) {
+    if (is_wp_error($refund)) {
         error_log('[AgenticPayments] Refund failed: ' . $refund->get_error_message());
-        return new WP_REST_Response( [ 'error' => 'Refund failed' ], 500 );
+        return new WP_REST_Response(['error' => 'Refund failed'], 500);
     }
 
     // ---- Persist idempotency metadata ----
-    $refund->update_meta_data( '_agentic_refund_id', $refund_id );
-    $refund->update_meta_data( '_agentic_agent_id', $agent_id );
+    $refund->update_meta_data('_agentic_refund_id', $refund_id);
+    $refund->update_meta_data('_agentic_agent_id', $agent_id);
     $refund->save();
 
     // ---- Order note ----
     $order->add_order_note(
         sprintf(
             'Agentic refund processed. Amount: %s. Agent: %s. Refund ID: %s',
-            wc_price( $amount ),
+            wc_price($amount),
             $agent_id ?: 'unknown',
             $refund_id
         )
@@ -924,21 +980,21 @@ $expected = hash_hmac( 'sha256', $signed_payload, $secret );
 
     return new WP_REST_Response(
         [
-            'status'    => 'success',
+            'status' => 'success',
             'refund_id' => $refund->get_id(),
         ],
         200
     );
 }
 
-add_action( 'admin_notices', function () {
-    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+add_action('admin_notices', function () {
+    if (!class_exists('WC_Payment_Gateway')) {
         return;
     }
 
-    $settings = get_option( 'woocommerce_agentic_settings', [] );
+    $settings = get_option('woocommerce_agentic_settings', []);
 
-    if ( empty( $settings['webhook_secret'] ) ) {
+    if (empty($settings['webhook_secret'])) {
         echo '<div class="notice notice-warning"><p>';
         echo '<strong>Agentic Payments:</strong> Webhook secret is not set. Agent callbacks will fail.';
         echo '</p></div>';
@@ -1025,23 +1081,23 @@ SECURITY NOTES:
 /**
  * Register Blocks integration
  */
-add_action( 'woocommerce_blocks_loaded', function() {
+add_action('woocommerce_blocks_loaded', function () {
 
-    if ( ! class_exists( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class ) ) {
+    if (!class_exists(Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry::class)) {
         return;
     }
 
     add_action(
         'woocommerce_blocks_payment_method_type_registration',
-        function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry ) {
+        function (Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $registry) {
 
-            if ( $registry->is_registered( 'agentic' ) ) {
+            if ($registry->is_registered('agentic')) {
                 return;
             }
 
             // require_once __DIR__ . '/includes/class-wc-agentic-blocks.php';
-
-            $registry->register( new WC_Agentic_Blocks() );
+    
+            $registry->register(new WC_Agentic_Blocks());
         }
     );
 });
