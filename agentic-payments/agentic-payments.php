@@ -584,7 +584,7 @@ add_action('woocommerce_loaded', function () {
 
 function agentic_get_webhook_secret()
 {
-    $settings = get_option('woocommerce_agentic_settings', []);
+    $settings = get_option('agentic_payments_options', []);
     return $settings['webhook_secret'] ?? '';
 }
 
@@ -733,6 +733,7 @@ add_action("init" /*"wp_enqueue_script"*/ , function () {
 
 });
 
+/////////////////////////////
 function agentic_verify_webhook( WP_REST_Request $request ) {
 
     $secret = agentic_get_webhook_secret();
@@ -986,6 +987,171 @@ function agentic_handle_refund(WP_REST_Request $request)
         200
     );
 }
+///////////////////////////
+
+
+/*
+add_action( 'rest_api_init', function () {
+    register_rest_route( 'agentic/v1', '/payment-complete', [
+        'methods'  => 'POST',
+        'callback' => 'agentic_handle_payment_complete',
+        'permission_callback' => '__return_true',
+    ]);
+});
+*/
+
+/*
+add_action( 'rest_api_init', function () {
+    register_rest_route( 'agentic/v1', '/refund', [
+        'methods'  => 'POST',
+        'callback' => 'agentic_handle_refund',
+        'permission_callback' => '__return_true',
+    ]);
+});
+*/
+
+/**
+ * Verify Agentic webhook HMAC signature
+ *
+ * @param string $body Raw POST body
+ * @param string $signature Signature sent in header
+ * @param string $secret Shared secret
+ * @return bool
+ */
+
+/*
+
+function agentic_verify_hmac( $body, $signature, $secret, $timestamp = '' ) {
+    $calculated = hash_hmac( 'sha256', $timestamp . '.' . $body, $secret );
+    return hash_equals( $calculated, $signature );
+}
+function agentic_handle_payment_complete( $request ) {
+    $body = $request->get_body();
+    $signature = $request->get_header('x-agentic-signature');
+    $secret = agentic_get_webhook_secret();
+
+$timestamp = $request->get_header('x-agentic-timestamp') ?? '';
+if ( ! agentic_verify_hmac( $body, $signature, $secret, $timestamp ) ) {
+    return new WP_REST_Response([
+        'status' => 'error',
+        'message' => 'Invalid signature',
+    ], 403);
+}
+
+
+    $data = json_decode( $body, true );
+    if ( ! isset( $data['order_id'], $data['transaction_id'] ) ) {
+        return new WP_REST_Response([
+            'status' => 'error',
+            'message' => 'Missing parameters',
+        ], 400);
+    }
+
+    $order_id = intval( $data['order_id'] );
+    $transaction_id = sanitize_text_field( $data['transaction_id'] );
+
+    // Idempotency: check if this transaction has already been processed
+    $processed_tx = get_post_meta( $order_id, '_agentic_tx_' . $transaction_id, true );
+    if ( $processed_tx ) {
+        return [
+            'status' => 'ok',
+            'message' => 'Order already processed',
+        ];
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return new WP_REST_Response([
+            'status' => 'error',
+            'message' => 'Order not found',
+        ], 404);
+    }
+
+    // Mark payment complete
+    $order->payment_complete( $transaction_id );
+    update_post_meta( $order_id, '_agentic_tx_' . $transaction_id, true );
+
+    // Optionally force completion for non-virtual products
+    if ( ! $order->has_status( 'completed' ) ) {
+        $order->update_status( 'completed', 'Agentic payment finalized' );
+    }
+
+    return [
+        'status' => 'success',
+        'order_id' => $order_id,
+    ];
+}
+
+function agentic_handle_refund( $request ) {
+    $body = $request->get_body();
+    $signature = $request->get_header('x-agentic-signature');
+    $secret = agentic_get_webhook_secret();
+
+$timestamp = $request->get_header('x-agentic-timestamp') ?? '';
+if ( ! agentic_verify_hmac( $body, $signature, $secret, $timestamp ) ) {
+    return new WP_REST_Response([
+        'status' => 'error',
+        'message' => 'Invalid signature',
+    ], 403);
+}
+
+    $data = json_decode( $body, true );
+    if ( ! isset( $data['order_id'], $data['refund_id'] ) ) {
+        return new WP_REST_Response([
+            'status' => 'error',
+            'message' => 'Missing parameters',
+        ], 400);
+    }
+
+    $order_id = intval( $data['order_id'] );
+    $refund_id = sanitize_text_field( $data['refund_id'] );
+
+    // Idempotency: check if refund has already been processed
+    $processed_refund = get_post_meta( $order_id, '_agentic_refund_' . $refund_id, true );
+    if ( $processed_refund ) {
+        return [
+            'status' => 'ok',
+            'message' => 'Refund already processed',
+        ];
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return new WP_REST_Response([
+            'status' => 'error',
+            'message' => 'Order not found',
+        ], 404);
+    }
+
+    // Process refund
+    $refund_amount = floatval( $data['amount'] ?? 0 );
+    if ( $refund_amount > 0 ) {
+        $refund = wc_create_refund([
+            'amount'         => $refund_amount,
+            'reason'         => $data['reason'] ?? 'Agentic refund',
+            'order_id'       => $order_id,
+            'refund_payment' => true,
+        ]);
+
+        if ( is_wp_error( $refund ) ) {
+            return [
+                'status' => 'error',
+                'message' => $refund->get_error_message(),
+            ];
+        }
+    }
+
+    update_post_meta( $order_id, '_agentic_refund_' . $refund_id, true );
+
+    return [
+        'status' => 'success',
+        'order_id' => $order_id,
+        'refund_id' => $refund_id,
+    ];
+}
+//////////////////////////////////////////////
+
+*/
 
 add_action('admin_notices', function () {
     if (!class_exists('WC_Payment_Gateway')) {
