@@ -582,6 +582,16 @@ add_action('woocommerce_loaded', function () {
 
 });
 
+function agentic_get_agents() {
+    return get_option( 'agentic_agents', [] );
+}
+
+function agentic_get_agent( $agent_id ) {
+    $agents = agentic_get_agents();
+    return $agents[ $agent_id ] ?? null;
+}
+
+
 function agentic_get_webhook_secret()
 {
     $settings = get_option('agentic_payments_options', []);
@@ -733,6 +743,30 @@ add_action("init" /*"wp_enqueue_script"*/ , function () {
 
 });
 
+function agentic_verify_agent( array $data ) {
+
+    if ( empty( $data['agent_id'] ) ) {
+        return new WP_Error(
+            'agentic_missing_agent',
+            'Missing agent_id',
+            [ 'status' => 403 ]
+        );
+    }
+
+    $agent = agentic_get_agent( $data['agent_id'] );
+
+    if ( ! $agent || empty( $agent['active'] ) ) {
+        return new WP_Error(
+            'agentic_invalid_agent',
+            'Unknown or inactive agent',
+            [ 'status' => 403 ]
+        );
+    }
+
+    return $agent;
+}
+
+
 /////////////////////////////
 function agentic_verify_webhook( WP_REST_Request $request ) {
 
@@ -768,6 +802,13 @@ function agentic_handle_payment_complete(WP_REST_Request $request)
 {
 
     error_log('[AgenticPayments] Callback received');
+
+$data = json_decode( $request->get_body(), true );
+
+$agent = agentic_verify_agent( $data );
+if ( is_wp_error( $agent ) ) {
+    return $agent;
+}
 
     // ---- HMAC SIGNATURE VERIFICATION ----
 
@@ -809,6 +850,8 @@ function agentic_handle_payment_complete(WP_REST_Request $request)
         error_log('[AgenticPayments] Missing order_id or transaction_id');
         return new WP_REST_Response(['error' => 'Invalid payload'], 400);
     }
+
+update_post_meta( $order_id, '_agentic_agent_id', $data['agent_id'] );
 
     $order = wc_get_order($order_id);
 
@@ -882,6 +925,19 @@ function agentic_handle_refund(WP_REST_Request $request)
 
     error_log('[AgenticPayments] Refund callback received');
 
+$agent = agentic_verify_agent( $data );
+if ( is_wp_error( $agent ) ) {
+    return $agent;
+}
+
+if ( empty( $agent['can_refund'] ) ) {
+    return new WP_Error(
+        'agentic_refund_not_allowed',
+        'Agent not authorized to issue refunds',
+        [ 'status' => 403 ]
+    );
+}
+
     // ---- HMAC VERIFICATION ----
     // Reuse the SAME verification code you added earlier
     // (do NOT duplicate logic — extract to helper if you want)
@@ -915,6 +971,16 @@ function agentic_handle_refund(WP_REST_Request $request)
     if (!$order_id || !$amount || !$refund_id) {
         return new WP_REST_Response(['error' => 'Invalid payload'], 400);
     }
+
+$original_agent = get_post_meta( $order_id, '_agentic_agent_id', true );
+
+if ( $original_agent !== $data['agent_id'] ) {
+    return new WP_Error(
+        'agentic_agent_mismatch',
+        'Agent cannot refund orders created by another agent',
+        [ 'status' => 403 ]
+    );
+}
 
     $order = wc_get_order($order_id);
 
