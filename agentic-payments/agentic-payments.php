@@ -588,6 +588,7 @@ function agentic_get_agents() {
 
 function agentic_get_agent( $agent_id ) {
     $agents = agentic_get_agents();
+    error_log("[AgenticPayments] ".$agents);
     return $agents[ $agent_id ] ?? null;
 }
 
