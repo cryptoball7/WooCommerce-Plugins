@@ -588,7 +588,7 @@ function agentic_get_agents() {
 
 function agentic_get_agent( $agent_id ) {
     $agents = agentic_get_agents();
-    error_log("[AgenticPayments] ".$agents);
+    error_log("[AgenticPayments] agent_id: ".$agent_id." \n\nagents: ".$agents."\n\nagents[agent_id]: ".$agents[ $agent_id ]);
     return $agents[ $agent_id ] ?? null;
 }
 
@@ -754,7 +754,7 @@ function agentic_verify_agent( array $data ) {
         );
     }
 
-    $agent = agentic_get_agent( $data['agent_id'] );
+    $agent = agentic_get_agent( $data['agent_id'] );// error_log("[AgenticPayments] (In agentic_verify_agent()) ".$agent);
 
     if ( ! $agent || empty( $agent['active'] ) ) {
         return new WP_Error(
