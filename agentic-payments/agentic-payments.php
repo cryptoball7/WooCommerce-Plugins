@@ -583,12 +583,22 @@ add_action('woocommerce_loaded', function () {
 });
 
 function agentic_get_agents() {
-    return get_option( 'agentic_agents', [] );
+    $agents = get_option( 'agentic_agents', [] );
+
+    // If stored as JSON string (e.g. via WP-CLI), decode it
+    if ( is_string( $agents ) ) {
+        $decoded = json_decode( $agents, true );
+        if ( json_last_error() === JSON_ERROR_NONE ) {
+            return $decoded;
+        }
+    }
+
+    // Ensure we always return an array
+    return is_array( $agents ) ? $agents : [];
 }
 
 function agentic_get_agent( $agent_id ) {
     $agents = agentic_get_agents();
-    error_log("[AgenticPayments] agent_id: ".$agent_id." \n\nagents: ".$agents."\n\nagents[agent_id]: ".$agents[ $agent_id ]);
     return $agents[ $agent_id ] ?? null;
 }
 
