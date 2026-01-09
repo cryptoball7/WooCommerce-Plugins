@@ -641,6 +641,120 @@ function agentic_check_order_status(WP_REST_Request $request)
     );
 }
 
+add_action( 'admin_menu', function () {
+    add_submenu_page(
+        'woocommerce',
+        'Agentic Agents',
+        'Agentic Agents',
+        'manage_woocommerce',
+        'agentic-agents',
+        'agentic_render_agents_page'
+    );
+});
+
+function agentic_render_agents_page() {
+
+    if ( ! current_user_can( 'manage_woocommerce' ) ) {
+        return;
+    }
+
+    $agents = agentic_get_agents();
+    ?>
+
+    <div class="wrap">
+        <h1>Agentic Agents</h1>
+
+        <table class="widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>Agent ID</th>
+                    <th>Status</th>
+                    <th>Can Refund</th>
+                    <th>Secret</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ( empty( $agents ) ) : ?>
+                    <tr><td colspan="4">No agents registered.</td></tr>
+                <?php else : ?>
+                    <?php foreach ( $agents as $agent_id => $agent ) : ?>
+                        <tr>
+                            <td><code><?php echo esc_html( $agent_id ); ?></code></td>
+                            <td><?php echo ! empty( $agent['active'] ) ? 'Active' : 'Disabled'; ?></td>
+                            <td><?php echo ! empty( $agent['can_refund'] ) ? 'Yes' : 'No'; ?></td>
+                            <td>
+                                <code><?php echo esc_html( substr( $agent['secret'], 0, 6 ) . '…' ); ?></code>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <h2>Add / Update Agent</h2>
+
+        <form method="post">
+            <?php wp_nonce_field( 'agentic_save_agent' ); ?>
+
+            <table class="form-table">
+                <tr>
+                    <th>Agent ID</th>
+                    <td><input name="agent_id" required /></td>
+                </tr>
+                <tr>
+                    <th>Secret</th>
+                    <td><input name="secret" value="<?php echo esc_attr( wp_generate_password( 32, false ) ); ?>" /></td>
+                </tr>
+                <tr>
+                    <th>Can refund</th>
+                    <td><input type="checkbox" name="can_refund" /></td>
+                </tr>
+                <tr>
+                    <th>Active</th>
+                    <td><input type="checkbox" name="active" checked /></td>
+                </tr>
+            </table>
+
+            <p>
+                <button class="button button-primary">Save Agent</button>
+            </p>
+        </form>
+    </div>
+    <?php
+}
+
+
+add_action( 'admin_init', function () {
+
+    if ( empty( $_POST['agent_id'] ) ) {
+        return;
+    }
+
+    if ( ! wp_verify_nonce( $_POST['_wpnonce'], 'agentic_save_agent' ) ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'manage_woocommerce' ) ) {
+        return;
+    }
+
+    $agents = agentic_get_agents();
+
+    $agent_id = sanitize_key( $_POST['agent_id'] );
+
+    $agents[ $agent_id ] = [
+        'secret'     => sanitize_text_field( $_POST['secret'] ),
+        'can_refund' => ! empty( $_POST['can_refund'] ),
+        'active'     => ! empty( $_POST['active'] ),
+    ];
+
+    update_option( 'agentic_agents', $agents );
+
+    wp_safe_redirect( admin_url( 'admin.php?page=agentic-agents' ) );
+    exit;
+});
+
+
 add_action('wp_enqueue_scripts', function () {
     wp_enqueue_script(
         'agentic-polling',
@@ -781,32 +895,66 @@ function agentic_verify_agent( array $data ) {
 /////////////////////////////
 function agentic_verify_webhook( WP_REST_Request $request ) {
 
-    $secret = agentic_get_webhook_secret();
-    if ( empty( $secret ) ) {
-        return new WP_Error( 'agentic_no_secret', 'Webhook secret not configured', [ 'status' => 500 ] );
-    }
-
+    $body      = $request->get_body();
     $signature = $request->get_header( 'x-agentic-signature' );
     $timestamp = $request->get_header( 'x-agentic-timestamp' );
 
     if ( ! $signature || ! $timestamp ) {
-        return new WP_Error( 'agentic_missing_headers', 'Missing signature headers', [ 'status' => 401 ] );
+        return new WP_Error(
+            'agentic_missing_headers',
+            'Missing signature headers',
+            [ 'status' => 401 ]
+        );
     }
 
-    // Optional: reject old requests (5 min window)
+    $data = json_decode( $body, true );
+    if ( ! is_array( $data ) || empty( $data['agent_id'] ) ) {
+        return new WP_Error(
+            'agentic_missing_agent',
+            'Missing agent_id',
+            [ 'status' => 403 ]
+        );
+    }
+
+    $agent = agentic_get_agent( $data['agent_id'] );
+    if ( ! $agent || empty( $agent['active'] ) ) {
+        return new WP_Error(
+            'agentic_invalid_agent',
+            'Unknown or inactive agent',
+            [ 'status' => 403 ]
+        );
+    }
+
+    if ( empty( $agent['secret'] ) ) {
+        return new WP_Error(
+            'agentic_no_secret',
+            'Agent has no secret configured',
+            [ 'status' => 500 ]
+        );
+    }
+
+    // Optional replay protection (recommended)
     if ( abs( time() - intval( $timestamp ) ) > 300 ) {
-        return new WP_Error( 'agentic_stale_request', 'Request timestamp too old', [ 'status' => 401 ] );
+        return new WP_Error(
+            'agentic_stale_request',
+            'Request timestamp too old',
+            [ 'status' => 401 ]
+        );
     }
 
-    $body = $request->get_body();
-    $payload = $timestamp . '.' . $body;
-    $expected = hash_hmac( 'sha256', $payload, $secret );
+    $payload  = $timestamp . '.' . $body;
+    $expected = hash_hmac( 'sha256', $payload, $agent['secret'] );
 
     if ( ! hash_equals( $expected, $signature ) ) {
-        return new WP_Error( 'agentic_bad_signature', 'Invalid signature', [ 'status' => 401 ] );
+        return new WP_Error(
+            'agentic_bad_signature',
+            'Invalid signature',
+            [ 'status' => 401 ]
+        );
     }
 
-    return true;
+    // ✅ Authenticated + authorized agent
+    return $agent;
 }
 
 function agentic_handle_payment_complete(WP_REST_Request $request)
@@ -816,7 +964,7 @@ function agentic_handle_payment_complete(WP_REST_Request $request)
 
 $data = json_decode( $request->get_body(), true );
 
-$agent = agentic_verify_agent( $data );
+$agent = agentic_verify_webhook( $request );
 if ( is_wp_error( $agent ) ) {
     return $agent;
 }
@@ -936,7 +1084,7 @@ function agentic_handle_refund(WP_REST_Request $request)
 
     error_log('[AgenticPayments] Refund callback received');
 
-$agent = agentic_verify_agent( $data );
+$agent = agentic_verify_webhook( $request );
 if ( is_wp_error( $agent ) ) {
     return $agent;
 }
@@ -1064,6 +1212,7 @@ if ( $original_agent !== $data['agent_id'] ) {
         200
     );
 }
+
 ///////////////////////////
 
 
