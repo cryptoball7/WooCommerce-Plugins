@@ -1215,6 +1215,30 @@ if ( $original_agent !== $data['agent_id'] ) {
 
 ///////////////////////////
 
+function agentic_log_event( $order_id, $event_type, array $data = [] ) {
+
+    $entry = [
+        'event'       => $event_type,
+        'timestamp'   => current_time( 'mysql', true ),
+        'ip'          => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        'user_agent'  => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+        'data'        => $data,
+    ];
+
+    add_post_meta(
+        $order_id,
+        '_agentic_audit_log',
+        wp_json_encode( $entry, JSON_UNESCAPED_SLASHES )
+    );
+
+    error_log(
+        '[AgenticPayments][AUDIT] order=' . $order_id .
+        ' event=' . $event_type .
+        ' data=' . wp_json_encode( $data )
+    );
+}
+
+
 
 /*
 add_action( 'rest_api_init', function () {
@@ -1295,6 +1319,14 @@ if ( ! agentic_verify_hmac( $body, $signature, $secret, $timestamp ) ) {
 
     // Mark payment complete
     $order->payment_complete( $transaction_id );
+agentic_log_event(
+    $order_id,
+    'payment_completed',
+    [
+        'agent_id'       => $agent['id'] ?? null,
+        'transaction_id' => $transaction_id,
+    ]
+); // TODO: Add the rest of the log events
     update_post_meta( $order_id, '_agentic_tx_' . $transaction_id, true );
 
     // Optionally force completion for non-virtual products
