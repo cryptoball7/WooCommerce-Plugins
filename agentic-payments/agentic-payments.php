@@ -946,6 +946,14 @@ function agentic_verify_webhook( WP_REST_Request $request ) {
     $expected = hash_hmac( 'sha256', $payload, $agent['secret'] );
 
     if ( ! hash_equals( $expected, $signature ) ) {
+agentic_log_event(
+    $order_id ?? 0,
+    'auth_failed',
+    [
+        'agent_id' => $data['agent_id'] ?? null,
+        'reason'   => $error_code,
+    ]
+);
         return new WP_Error(
             'agentic_bad_signature',
             'Invalid signature',
@@ -1303,6 +1311,14 @@ if ( ! agentic_verify_hmac( $body, $signature, $secret, $timestamp ) ) {
     // Idempotency: check if this transaction has already been processed
     $processed_tx = get_post_meta( $order_id, '_agentic_tx_' . $transaction_id, true );
     if ( $processed_tx ) {
+agentic_log_event(
+    $order_id,
+    'payment_duplicate',
+    [
+        'agent_id'       => $agent['id'] ?? null,
+        'transaction_id' => $transaction_id,
+    ]
+);
         return [
             'status' => 'ok',
             'message' => 'Order already processed',
@@ -1396,6 +1412,18 @@ if ( ! agentic_verify_hmac( $body, $signature, $secret, $timestamp ) ) {
                 'status' => 'error',
                 'message' => $refund->get_error_message(),
             ];
+        }
+        else {
+agentic_log_event(
+    $order_id,
+    'refund_processed',
+    [
+        'agent_id'       => $agent['id'],
+        'transaction_id' => $transaction_id,
+        'amount'         => $amount,
+        'reason'         => $reason ?? '',
+    ]
+);
         }
     }
 
