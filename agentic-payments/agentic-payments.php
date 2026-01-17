@@ -653,12 +653,18 @@ add_action( 'admin_menu', function () {
 });
 
 function agentic_render_agents_page() {
-
-    if ( ! current_user_can( 'manage_woocommerce' ) ) {
-        return;
-    }
+    if ( ! current_user_can( 'manage_woocommerce' ) ) return;
 
     $agents = agentic_get_agents();
+
+    // Handle delete request
+    if ( isset( $_GET['delete_agent'] ) && check_admin_referer( 'agentic_delete_agent' ) ) {
+        $delete_id = sanitize_key( $_GET['delete_agent'] );
+        unset( $agents[ $delete_id ] );
+        update_option( 'agentic_agents', $agents );
+        wp_safe_redirect( admin_url( 'admin.php?page=agentic-agents' ) );
+        exit;
+    }
     ?>
 
     <div class="wrap">
@@ -671,11 +677,12 @@ function agentic_render_agents_page() {
                     <th>Status</th>
                     <th>Can Refund</th>
                     <th>Secret</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ( empty( $agents ) ) : ?>
-                    <tr><td colspan="4">No agents registered.</td></tr>
+                    <tr><td colspan="5">No agents registered.</td></tr>
                 <?php else : ?>
                     <?php foreach ( $agents as $agent_id => $agent ) : ?>
                         <tr>
@@ -684,6 +691,10 @@ function agentic_render_agents_page() {
                             <td><?php echo ! empty( $agent['can_refund'] ) ? 'Yes' : 'No'; ?></td>
                             <td>
                                 <code><?php echo esc_html( substr( $agent['secret'], 0, 6 ) . '…' ); ?></code>
+                            </td>
+                            <td>
+                                <a href="<?php echo wp_nonce_url( admin_url('admin.php?page=agentic-agents&delete_agent=' . urlencode($agent_id)), 'agentic_delete_agent' ); ?>" class="button button-small">Delete</a>
+                                <button class="button button-small agent-rotate-secret" data-agent="<?php echo esc_attr($agent_id); ?>">Rotate</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -695,7 +706,6 @@ function agentic_render_agents_page() {
 
         <form method="post">
             <?php wp_nonce_field( 'agentic_save_agent' ); ?>
-
             <table class="form-table">
                 <tr>
                     <th>Agent ID</th>
@@ -703,7 +713,7 @@ function agentic_render_agents_page() {
                 </tr>
                 <tr>
                     <th>Secret</th>
-                    <td><input name="secret" value="<?php echo esc_attr( wp_generate_password( 32, false ) ); ?>" /></td>
+                    <td><input name="secret" value="<?php echo esc_attr( wp_generate_password(32, false) ); ?>" /></td>
                 </tr>
                 <tr>
                     <th>Can refund</th>
@@ -715,16 +725,51 @@ function agentic_render_agents_page() {
                 </tr>
             </table>
 
-            <p>
-                <button class="button button-primary">Save Agent</button>
-            </p>
+            <p><button class="button button-primary">Save Agent</button></p>
         </form>
     </div>
+
+    <script>
+    jQuery(document).ready(function($){
+        $('.agent-rotate-secret').on('click', function(e){
+            e.preventDefault();
+            var agentId = $(this).data('agent');
+            var newSecret = Array.from({length:32},()=>Math.random().toString(36)[2]||0).join('');
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'rotate_agent',
+                value: agentId
+            }).appendTo('form');
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'new_secret',
+                value: newSecret
+            }).appendTo('form');
+            $('form').submit();
+        });
+    });
+    </script>
     <?php
 }
 
 
 add_action( 'admin_init', function () {
+
+if ( ! empty( $_POST['rotate_agent'] ) && ! empty( $_POST['new_secret'] ) ) {
+    if ( ! wp_verify_nonce( $_POST['_wpnonce'], 'agentic_save_agent' ) ) return;
+    if ( ! current_user_can( 'manage_woocommerce' ) ) return;
+
+    $agents = agentic_get_agents();
+    $agent_id = sanitize_key( $_POST['rotate_agent'] );
+    $new_secret = sanitize_text_field( $_POST['new_secret'] );
+
+    if ( isset( $agents[ $agent_id ] ) ) {
+        $agents[ $agent_id ]['secret'] = $new_secret;
+        update_option( 'agentic_agents', $agents );
+        wp_safe_redirect( admin_url( 'admin.php?page=agentic-agents' ) );
+        exit;
+    }
+}
 
     if ( empty( $_POST['agent_id'] ) ) {
         return;
