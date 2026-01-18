@@ -7,6 +7,27 @@ Author: Cryptoball cryptoball7@gmail.com
 Text Domain: agentic-payments
 */
 
+/*
+ TODO:
+
+Ensure every admin action checks:
+
+current_user_can( 'manage_woocommerce' )
+
+
+Places to confirm:
+
+Add agent
+
+Update agent
+
+Rotate secret
+
+Delete agent
+
+View admin page
+*/
+
 if (!defined('ABSPATH')) {
     exit;
 }
