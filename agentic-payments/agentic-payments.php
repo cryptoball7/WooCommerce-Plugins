@@ -28,6 +28,12 @@ Delete agent
 View admin page
 */
 
+function agentic_require_admin() {
+  if ( ! current_user_can( 'manage_woocommerce' ) ) {
+      wp_die( 'Unauthorized', 403 );
+  }
+}
+
 if (!defined('ABSPATH')) {
     exit;
 }
