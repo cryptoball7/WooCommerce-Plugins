@@ -963,8 +963,6 @@ function agentic_verify_agent( array $data ) {
     return $agent;
 }
 
-
-/////////////////////////////
 function agentic_verify_webhook( WP_REST_Request $request ) {
 
     $body      = $request->get_body();
@@ -1292,8 +1290,6 @@ if ( $original_agent !== $data['agent_id'] ) {
         200
     );
 }
-
-///////////////////////////
 
 function agentic_log_event( $order_id, $event_type, array $data = [] ) {
 
