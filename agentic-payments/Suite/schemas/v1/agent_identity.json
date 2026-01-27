@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-commerce.dev/schemas/v1/agent_identity.json",
+  "title": "Agent Identity",
+  "description": "Canonical representation of an AI agent acting on a WooCommerce store.",
+  "type": "object",
+  "required": ["agent_id", "agent_provider", "display_name"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "Stable identifier for the agent within the provider's domain."
+    },
+    "agent_provider": {
+      "type": "string",
+      "description": "Organization or platform responsible for the agent (e.g. openai, microsoft, custom)."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for audit logs and merchant visibility."
+    },
+    "acting_for": {
+      "type": "object",
+      "description": "Optional representation of the entity the agent is acting on behalf of.",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "organization"]
+        },
+        "id": {
+          "type": "string",
+          "description": "Identifier of the user or organization." 
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Declared high-level capabilities of the agent. Informational only.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional provider-specific metadata. Not used for authorization decisions.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
