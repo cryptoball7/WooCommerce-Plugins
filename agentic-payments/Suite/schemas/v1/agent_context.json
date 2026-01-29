@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-commerce.dev/schemas/v1/agent_context.json",
+  "title": "Agent Context",
+  "description": "Contextual information describing the circumstances under which an agent request is made.",
+  "type": "object",
+  "required": ["request_id", "timestamp", "execution_mode"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "description": "Client-generated unique identifier for this agent request, used for idempotency and audit replay."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp indicating when the request was created by the agent."
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["preview", "dry_run", "execute"],
+      "description": "Indicates whether the request is informational, simulated, or intended to cause side effects."
+    },
+    "locale": {
+      "type": "string",
+      "description": "Optional locale preference (e.g. en-US) used for formatting responses.",
+      "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z]{2})?$"
+    },
+    "currency": {
+      "type": "string",
+      "description": "Optional ISO 4217 currency code preferred for monetary values.",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "user_agent": {
+      "type": "string",
+      "description": "Optional human-readable description of the agent runtime environment."
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Optional execution constraints provided by the caller.",
+      "properties": {
+        "max_amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum monetary amount the agent is permitted to consider."
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional expiration time after which the request must not be executed."
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional contextual metadata. Informational only; not used for authorization decisions.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
