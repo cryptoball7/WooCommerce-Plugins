@@ -10,6 +10,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+define('AGENT_COMMERCE_PATH', plugin_dir_path(__FILE__));
+
 // Simple autoloader (can be replaced with Composer later)
 spl_autoload_register(function ($class) {
     if (strpos($class, 'AgentCommerce\\Core') !== 0) {
