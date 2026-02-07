@@ -5,6 +5,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use AgentCommerce\Core\Bootstrap;
 use AgentCommerce\Core\Request\Envelope;
+use AgentCommerce\Core\Auth\Scope;
 
 class ProductsController
 {
@@ -31,6 +32,20 @@ class ProductsController
                 $envelope->get_error_message(),
                 $envelope->get_error_data(),
                 400
+            );
+        }
+
+        $scope_check = Scope::require(
+            $envelope['agent_context'],
+            'catalog:read'
+        );
+        
+        if (is_wp_error($scope_check)) {
+            return Bootstrap::error(
+                $scope_check->get_error_code(),
+                $scope_check->get_error_message(),
+                $scope_check->get_error_data(),
+                403
             );
         }
 
