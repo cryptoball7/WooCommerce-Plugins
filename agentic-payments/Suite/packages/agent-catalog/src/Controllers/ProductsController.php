@@ -6,6 +6,7 @@ use WP_REST_Response;
 use AgentCommerce\Core\Bootstrap;
 use AgentCommerce\Core\Request\Envelope;
 use AgentCommerce\Core\Auth\Scope;
+use AgentCommerce\Core\Schemas\ResponseValidator;
 
 class ProductsController
 {
@@ -63,7 +64,7 @@ class ProductsController
             ]
         ];
 
-        return new WP_REST_Response([
+        $response = [
             'products' => $products,
             'pagination' => [
                 'page' => 1,
@@ -71,6 +72,23 @@ class ProductsController
                 'total_items' => 1,
                 'total_pages' => 1
             ]
-        ], 200);
+        ];
+        
+        $validation = ResponseValidator::validate(
+            $response,
+            AGENT_COMMERCE_PATH . '/schemas/v1/catalog_products_response.json'
+        );
+        
+        if (is_wp_error($validation)) {
+            return Bootstrap::error(
+                $validation->get_error_code(),
+                $validation->get_error_message(),
+                $validation->get_error_data(),
+                500
+            );
+        }
+        
+        return new WP_REST_Response($response, 200);
+
     }
 }
