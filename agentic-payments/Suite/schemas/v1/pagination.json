@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["page", "per_page", "total_items", "total_pages"],
+  "properties": {
+    "page": { "type": "integer" },
+    "per_page": { "type": "integer" },
+    "total_items": { "type": "integer" },
+    "total_pages": { "type": "integer" }
+  }
+}

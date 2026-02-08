@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["products", "pagination"],
+  "properties": {
+    "products": {
+      "type": "array",
+      "items": { "$ref": "product_summary.json" }
+    },
+    "pagination": { "$ref": "pagination.json" }
+  }
+}
