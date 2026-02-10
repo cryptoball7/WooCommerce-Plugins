@@ -181,6 +181,19 @@ The initial release prioritizes **clarity and safety** over feature completeness
 
 ---
 
+Decision:
+product_summary is intentionally minimal and agent-optimized.
+Richer product representations will be introduced as separate schemas/endpoints in future versions.
+
+---
+
+Decision:
+Agent-facing schemas are split into summary and detail forms.
+Summary schemas are optimized for discovery and intent formation.
+Detail schemas are used only in single-resource endpoints.
+
+---
+
 ## How to use this document
 
 - Use this document to evaluate new features and plugins

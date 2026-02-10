@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-commerce.dev/schemas/v1/product_summary.json",
+  "title": "Product Summary",
+  "description": "Minimal, agent-friendly representation of a WooCommerce product suitable for discovery and evaluation.",
+  "type": "object",
+  "required": ["product_id", "type", "name", "status", "pricing", "availability"],
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "description": "Stable product identifier. Must remain consistent across requests."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["simple", "variable", "variation", "grouped", "external"],
+      "description": "WooCommerce product type."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable product name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional short description intended for agent reasoning."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive", "archived"],
+      "description": "Product lifecycle status as exposed to agents."
+    },
+    "pricing": {
+      "type": "object",
+      "required": ["currency", "amount"],
+      "properties": {
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217 currency code."
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Base unit price, excluding tax and shipping."
+        },
+        "price_type": {
+          "type": "string",
+          "enum": ["fixed", "range", "from"],
+          "description": "Indicates how the amount should be interpreted for variable products."
+        }
+      },
+      "additionalProperties": false
+    },
+    "availability": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["in_stock", "out_of_stock", "backorder"],
+          "description": "Current availability state."
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional available quantity if known."
+        }
+      },
+      "additionalProperties": false
+    },
+    "attributes": {
+      "type": "array",
+      "description": "Optional simplified attributes for agent comparison.",
+      "items": {
+        "type": "object",
+        "required": ["name", "value"],
+        "properties": {
+          "name": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "media": {
+      "type": "array",
+      "description": "Optional media references (e.g. images) suitable for agent preview.",
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "type": { "type": "string", "enum": ["image", "video"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional non-authoritative metadata for agent use.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
