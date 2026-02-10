@@ -7,6 +7,8 @@ use AgentCommerce\Core\Bootstrap;
 use AgentCommerce\Core\Request\Envelope;
 use AgentCommerce\Core\Auth\Scope;
 use AgentCommerce\Core\Schemas\ResponseValidator;
+use WC_Product_Query;
+use AgentCommerce\Catalog\Adapters\ProductSummaryAdapter;
 
 class ProductsController
 {
@@ -50,19 +52,17 @@ class ProductsController
             );
         }
 
-        // Mock data (schema-compliant)
-        $products = [
-            [
-                'id' => 'sku_123',
-                'title' => 'Example Product',
-                'price' => [
-                    'amount' => 19.99,
-                    'currency' => 'USD'
-                ],
-                'in_stock' => true,
-                'type' => 'simple'
-            ]
-        ];
+        $query = new WC_Product_Query([
+            'status' => 'publish',
+            'limit'  => 20,
+        ]);
+        
+        $wc_products = $query->get_products();
+        
+        $products = array_map(
+            fn($product) => ProductSummaryAdapter::from_wc_product($product),
+            $wc_products
+        );
 
         $response = [
             'products' => $products,
