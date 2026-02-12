@@ -28,6 +28,8 @@ spl_autoload_register(function ($class) {
     }
 });
 
+require_once __DIR__ . '/src/routes.php';
+
 use AgentCommerce\Catalog\Controllers\ProductsController;
 
 add_action('rest_api_init', function () {
