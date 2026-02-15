@@ -1,0 +1,20 @@
+{
+  "name": "agent-commerce/platform",
+  "description": "Agent Commerce platform plugins and core libraries",
+  "type": "project",
+  "license": "proprietary",
+  "autoload": {
+    "psr-4": {
+      "AgentCommerce\\Core\\": "packages/core/src/",
+      "AgentCommerce\\Catalog\\": "packages/agent-catalog/src/",
+      "AgentCommerce\\Checkout\\": "packages/agent-checkout/src/",
+      "AgentCommerce\\Orders\\": "packages/agent-orders/src/",
+      "AgentCommerce\\Payments\\": "packages/agent-payments/src/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "classmap-authoritative": false,
+    "sort-packages": true
+  }
+}
