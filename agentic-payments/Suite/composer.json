@@ -5,7 +5,7 @@
   "license": "proprietary",
   "autoload": {
     "psr-4": {
-      "AgentCommerce\\Core\\": "packages/core/src/",
+      "AgentCommerce\\Core\\": "packages/agent-core/src/",
       "AgentCommerce\\Catalog\\": "packages/agent-catalog/src/",
       "AgentCommerce\\Checkout\\": "packages/agent-checkout/src/",
       "AgentCommerce\\Orders\\": "packages/agent-orders/src/",
