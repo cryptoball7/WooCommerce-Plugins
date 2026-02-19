@@ -5,6 +5,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 
+use AgentCommerce\Core\Middleware\LoggingMiddleware;
+
 class Bootstrap
 {
     const API_NAMESPACE = 'agent-commerce/v1';
@@ -12,6 +14,8 @@ class Bootstrap
     public static function init(): void
     {
         add_action('rest_api_init', [self::class, 'register_routes']);
+
+        add_filter('rest_post_dispatch', [self::class, 'log_response'], 10, 3);
     }
 
     public static function register_routes(): void
@@ -35,6 +39,14 @@ class Bootstrap
             'version' => '0.1.0',
             'timestamp' => gmdate('c'),
         ], 200);
+    }
+
+    public static function log_response($response, $server, $request)
+    {
+        return \AgentCommerce\Core\Middleware\LoggingMiddleware::log_response(
+            $request,
+            $response
+        );
     }
 
     /**

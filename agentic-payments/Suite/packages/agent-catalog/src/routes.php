@@ -30,6 +30,7 @@ add_action('rest_api_init', function () {
         ]);
 
         return MiddlewareRunner::run($request, [
+            [LoggingMiddleware::class, 'handle'],
             [AgentAuthMiddleware::class, 'handle'],
             [CapabilityMiddleware::class, 'handle'],
             [RateLimitMiddleware::class, 'handle'],
