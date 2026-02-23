@@ -7,6 +7,8 @@ use WP_Error;
 
 use AgentCommerce\Core\Middleware\LoggingMiddleware;
 
+use AgentCommerce\Core\Http\ErrorResponder;
+
 class Bootstrap
 {
     const API_NAMESPACE = 'agent-commerce/v1';
@@ -16,6 +18,8 @@ class Bootstrap
         add_action('rest_api_init', [self::class, 'register_routes']);
 
         add_filter('rest_post_dispatch', [self::class, 'log_response'], 10, 3);
+
+        ErrorResponder::init();
     }
 
     public static function register_routes(): void

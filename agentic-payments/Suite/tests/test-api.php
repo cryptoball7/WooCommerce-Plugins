@@ -99,4 +99,25 @@ assertTrue(isset($json['version']), "Version exists");
 
 assertTrue(isset($json['timestamp']), "Timestamp exists");
 
+/* -----------------------------
+   Test: Error Formatting
+----------------------------- */
+
+echo "\nTesting Error Format\n";
+echo "---------------------\n";
+
+[$status, $body] = request("$base/wp-json/agent-commerce/v1/does-not-exist");
+
+assertTrue($status === 404, "404 returned for missing route");
+
+$json = json_decode($body, true);
+
+assertTrue(isset($json['error']), "Error wrapper exists");
+
+assertTrue(isset($json['error']['code']), "Error code present");
+
+assertTrue(isset($json['error']['message']), "Error message present");
+
+assertTrue(array_key_exists('details', $json['error']), "Error details present");
+
 echo "\nDone.\n";
