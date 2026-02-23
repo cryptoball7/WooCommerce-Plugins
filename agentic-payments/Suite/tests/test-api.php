@@ -49,7 +49,7 @@ function request(string $url): array
         exit(1);
     }
 
-    curl_close($ch);
+    //curl_close($ch);
 
     return [$status, $body];
 }
