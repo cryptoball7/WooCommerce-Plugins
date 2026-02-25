@@ -112,6 +112,10 @@ assertTrue($status === 404, "404 returned for missing route");
 
 $json = json_decode($body, true);
 
+echo "\n";
+print_r($json);
+echo "\n";
+
 assertTrue(isset($json['error']), "Error wrapper exists");
 
 assertTrue(isset($json['error']['code']), "Error code present");

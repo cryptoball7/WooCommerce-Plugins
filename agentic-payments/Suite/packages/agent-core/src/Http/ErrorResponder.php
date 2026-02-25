@@ -14,10 +14,17 @@ class ErrorResponder
             10,
             3
         );
+
+        add_filter(
+            'rest_pre_serve_request',
+            [self::class, 'serve'],
+            10,
+            4
+        );
     }
 
     /**
-     * Convert all WP REST errors into standardized JSON structure
+     * Normalize WP_Error responses during dispatch
      */
     public static function normalize($response, $server, $request)
     {
@@ -34,6 +41,22 @@ class ErrorResponder
         }
 
         return $response;
+    }
+
+    /**
+     * Final interception before output is sent
+     * Handles core WP errors like rest_no_route
+     */
+    public static function serve($served, $result, $request, $server)
+    {
+        if ($result instanceof WP_Error) {
+            $response = self::fromWpError($result);
+            $server->send_headers($response->get_headers());
+            echo wp_json_encode($response->get_data());
+            return true;
+        }
+
+        return $served;
     }
 
     private static function fromWpError(WP_Error $error): WP_REST_Response
