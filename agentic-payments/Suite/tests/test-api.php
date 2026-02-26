@@ -116,6 +116,8 @@ echo "\n";
 print_r($json);
 echo "\n";
 
+assertTrue(is_array($json), "JSON decoded successfully");
+
 assertTrue(isset($json['error']), "Error wrapper exists");
 
 assertTrue(isset($json['error']['code']), "Error code present");
