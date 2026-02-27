@@ -48,16 +48,40 @@ class ErrorResponder
      * Handles core WP errors like rest_no_route
      */
     public static function serve($served, $result, $request, $server)
-    {
-        if ($result instanceof WP_Error) {
-            $response = self::fromWpError($result);
-            $server->send_headers($response->get_headers());
-            echo wp_json_encode($response->get_data());
+{
+    // Case 1 — raw WP_Error
+    if ($result instanceof WP_Error) {
+        $response = self::fromWpError($result);
+        $server->send_headers($response->get_headers());
+        echo wp_json_encode($response->get_data());
+        return true;
+    }
+
+    // Case 2 — WP_REST_Response containing error array
+    if ($result instanceof \WP_REST_Response) {
+        $data = $result->get_data();
+
+        if (is_array($data) && isset($data['code'], $data['message'])) {
+
+            $status = $data['data']['status'] ?? 400;
+
+            $normalized = [
+                'error' => [
+                    'code' => $data['code'],
+                    'message' => $data['message'],
+                    'details' => $data['data'] ?? []
+                ]
+            ];
+
+            $server->set_status($status);
+            echo wp_json_encode($normalized);
             return true;
         }
-
-        return $served;
     }
+
+    return $served;
+}
+
 
     private static function fromWpError(WP_Error $error): WP_REST_Response
     {
