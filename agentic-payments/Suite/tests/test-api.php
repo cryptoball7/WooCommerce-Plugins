@@ -120,10 +120,12 @@ assertTrue(is_array($json), "JSON decoded successfully");
 
 assertTrue(isset($json['error']), "Error wrapper exists");
 
-assertTrue(isset($json['error']['code']), "Error code present");
+if(isset($json['error'])) {
+  assertTrue(isset($json['error']['code']), "Error code present");
 
-assertTrue(isset($json['error']['message']), "Error message present");
+  assertTrue(isset($json['error']['message']), "Error message present");
 
-assertTrue(array_key_exists('details', $json['error']), "Error details present");
+  assertTrue(array_key_exists('details', $json['error']), "Error details present");
+}
 
 echo "\nDone.\n";
