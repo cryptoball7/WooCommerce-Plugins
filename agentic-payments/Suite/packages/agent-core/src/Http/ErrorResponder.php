@@ -22,14 +22,14 @@ add_action( 'template_redirect', [self::class, 'serve']);
             10,
             4
         );
-/*
+
         add_filter(
             'rest_no_route',
             [self::class, 'serve'],
             10,
             4
         );
-*/
+
         add_filter(
             'rest_post_serve_request',
             [self::class, 'serve'],
@@ -88,7 +88,7 @@ add_action( 'template_redirect', [self::class, 'serve']);
                 ]
             ];
 
-            $server->set_status($status);
+            status_header($status);
             echo wp_json_encode($normalized);
             return true;
         }

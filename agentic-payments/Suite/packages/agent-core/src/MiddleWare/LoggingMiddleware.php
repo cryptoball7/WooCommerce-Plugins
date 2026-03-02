@@ -4,6 +4,8 @@ namespace AgentCommerce\Core\Middleware;
 
 use WP_REST_Request;
 
+use AgentCommerce\Core\Http\RequestAttributes;
+
 /**
  * Logging Middleware
  *
@@ -19,7 +21,7 @@ class LoggingMiddleware
         /**
          * Store start time for later middleware / response hooks
          */
-        $request->set_attribute('_log_start', $start);
+        RequestAttributes::set($request, '_log_start', $start);
 
         /**
          * Capture request metadata
@@ -46,7 +48,7 @@ class LoggingMiddleware
      */
     public static function log_response(WP_REST_Request $request, $response)
     {
-        $start = $request->get_attribute('_log_start');
+        $start = RequestAttributes::get($request, '_log_start');
 
         if (!$start) {
             return $response;

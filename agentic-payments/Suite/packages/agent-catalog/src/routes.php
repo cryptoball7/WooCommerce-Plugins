@@ -27,7 +27,7 @@ add_action('rest_api_init', function () {
         $request->set_attribute('rate_limit', [
             'limit'  => 60,
             'window' => 60
-        ]);
+        ]);error_log("test12345");
 
         return MiddlewareRunner::run($request, [
             [LoggingMiddleware::class, 'handle'],
