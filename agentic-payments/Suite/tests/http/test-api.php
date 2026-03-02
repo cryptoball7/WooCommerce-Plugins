@@ -112,10 +112,6 @@ assertTrue($status === 404, "404 returned for missing route");
 
 $json = json_decode($body, true);
 
-echo "\n";
-print_r($json);
-echo "\n";
-
 assertTrue(is_array($json), "JSON decoded successfully");
 
 assertTrue(isset($json['error']), "Error wrapper exists");
@@ -127,5 +123,18 @@ if(isset($json['error'])) {
 
   assertTrue(array_key_exists('details', $json['error']), "Error details present");
 }
+
+echo "\nTesting Validation Middleware\n";
+echo "-----------------------------\n";
+
+[$status, $body] = request("$base/wp-json/agent-commerce/v1/products?limit=notanumber");
+
+assertTrue($status === 422, "Invalid query returns 422");
+
+$json = json_decode($body, true);
+
+assertTrue(isset($json['error']), "Validation error returned");
+
+assertTrue($json['error']['code'] === 'validation_error', "Correct error code");
 
 echo "\nDone.\n";
