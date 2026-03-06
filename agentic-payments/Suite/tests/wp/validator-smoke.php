@@ -1,26 +1,95 @@
 <?php
 
+declare(strict_types=1);
+
 use AgentCommerce\Core\Validation\Validator;
 
-$schema = AGENT_COMMERCE_PATH . '/schemas/v1/test.schema.json';
+/*
+|--------------------------------------------------------------------------
+| Load .env
+|--------------------------------------------------------------------------
+*/
 
-echo $schema."\n";
+function loadEnv(string $path): array
+{
+    if (!file_exists($path)) {
+        echo "FAIL .env not found\n";
+        exit(1);
+    }
 
-echo "Validator Smoke Test\n";
+    $vars = [];
+
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if (str_starts_with(trim($line), '#')) {
+            continue;
+        }
+
+        [$k,$v] = array_map('trim', explode('=', $line, 2));
+        $vars[$k] = $v;
+    }
+
+    return $vars;
+}
+
+$env = loadEnv(__DIR__ . '/../config/.env');
+
+if (!isset($env['WP_PATH'])) {
+    echo "FAIL WP_PATH missing in .env\n";
+    exit(1);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Load WordPress
+|--------------------------------------------------------------------------
+*/
+
+$wp = rtrim($env['WP_PATH'], '/') . '/wp-load.php';
+
+if (!file_exists($wp)) {
+    echo "FAIL WordPress not found at $wp\n";
+    exit(1);
+}
+
+require_once $wp;
+
+echo "\nValidator Smoke Test\n";
 echo "--------------------\n";
 
-$result1 = Validator::validate([], $schema);
+/*
+|--------------------------------------------------------------------------
+| Schema path
+|--------------------------------------------------------------------------
+*/
 
-if(is_wp_error($result1))
- echo $result1->get_error_message()."\n";
-else
- echo "Not an error.\n";
+$schema = AGENT_COMMERCE_SCHEMA_PATH . '/v1/test.schema.json';
 
-echo is_wp_error($result1)
-    ? "PASS missing required detected\n"
-    : "FAIL missing required not detected\n";
+/*
+|--------------------------------------------------------------------------
+| Test: Missing Required
+|--------------------------------------------------------------------------
+*/
 
-$result2 = Validator::validate(['name' => 'John'], $schema);
-echo $result2 === true
-    ? "PASS valid data accepted\n"
-    : "FAIL valid data rejected\n";
+$result = Validator::validate([], $schema);
+
+if (is_wp_error($result)) {
+    echo "PASS missing required detected\n";
+} else {
+    echo "FAIL missing required NOT detected\n";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Test: Valid Data
+|--------------------------------------------------------------------------
+*/
+
+$result = Validator::validate(['name' => 'John'], $schema);
+
+if (!is_wp_error($result)) {
+    echo "PASS valid data accepted\n";
+} else {
+    echo "FAIL valid data rejected\n";
+}
+
+echo "\nDone.\n";

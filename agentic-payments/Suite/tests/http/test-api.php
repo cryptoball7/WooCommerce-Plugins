@@ -67,7 +67,7 @@ function assertTrue(bool $condition, string $message): void
    Load Environment
 ----------------------------- */
 
-$env = loadEnv(__DIR__ . '/.env');
+$env = loadEnv(__DIR__ . '/../config/.env');
 
 if (!isset($env['BASE_URL'])) {
     fwrite(STDERR, "❌ BASE_URL missing from .env\n");
