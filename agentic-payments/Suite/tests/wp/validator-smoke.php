@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once(__DIR__ . "/../../agent-commerce.php");
+
 use AgentCommerce\Core\Validation\Validator;
 
 /*
@@ -44,14 +46,14 @@ if (!isset($env['WP_PATH'])) {
 |--------------------------------------------------------------------------
 */
 
-$wp = rtrim($env['WP_PATH'], '/') . '/wp-load.php';
+$wp_load_path = rtrim($env['WP_PATH'], '/') . '/wp-load.php';
 
-if (!file_exists($wp)) {
-    echo "FAIL WordPress not found at $wp\n";
+if (!file_exists($wp_load_path)) {
+    echo "FAIL WordPress not found at $wp_load_path\n";
     exit(1);
 }
 
-require_once $wp;
+require_once $wp_load_path;
 
 echo "\nValidator Smoke Test\n";
 echo "--------------------\n";
