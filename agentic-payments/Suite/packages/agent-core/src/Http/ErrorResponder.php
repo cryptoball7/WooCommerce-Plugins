@@ -8,7 +8,6 @@ class ErrorResponder
 {
     public static function init(): void
     {
-add_action( 'template_redirect', [self::class, 'serve']);
         add_filter(
             'rest_post_dispatch',
             [self::class, 'normalize'],
@@ -18,20 +17,6 @@ add_action( 'template_redirect', [self::class, 'serve']);
 
         add_filter(
             'rest_pre_serve_request',
-            [self::class, 'serve'],
-            10,
-            4
-        );
-
-        add_filter(
-            'rest_no_route',
-            [self::class, 'serve'],
-            10,
-            4
-        );
-
-        add_filter(
-            'rest_post_serve_request',
             [self::class, 'serve'],
             10,
             4

@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-require_once(__DIR__ . "/../../agent-commerce.php");
-
 use AgentCommerce\Core\Validation\Validator;
 
 /*
@@ -54,6 +52,8 @@ if (!file_exists($wp_load_path)) {
 }
 
 require_once $wp_load_path;
+
+require_once __DIR__ . "/../../agent-commerce.php";
 
 echo "\nValidator Smoke Test\n";
 echo "--------------------\n";
