@@ -1,5 +1,41 @@
 <?php
 
+/*
+
+TODO:
+
+Update middleware signatures:
+
+OLD:
+
+handle(WP_REST_Request $request, callable $next)
+
+NEW:
+
+handle(Context $ctx, callable $next)
+
+-----
+-----Update Existing Middleware
+
+For example LoggingMiddleware should now become:
+
+use AgentCommerce\Core\Http\Context;
+
+public function handle(Context $ctx, callable $next)
+{
+    $start = microtime(true);
+
+    $response = $next($ctx);
+
+    $duration = microtime(true) - $start;
+
+    return $response;
+}
+
+Note the Context instead of WP_REST_Request.
+
+*/
+
 declare(strict_types=1);
 
 namespace AgentCommerce\Core\Http;
