@@ -28,7 +28,7 @@ class SchemaValidationMiddleware
         return new self($schema, 'query');
     }
 
-    public function handle(WP_REST_Request $request, callable $next)
+    public function handle(Context $ctx, callable $next)
     {
         $data = match ($this->target) {
             'query' => $request->get_query_params(),

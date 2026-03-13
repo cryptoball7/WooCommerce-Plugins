@@ -21,7 +21,7 @@ use WP_Error;
  */
 class CapabilityMiddleware
 {
-    public static function handle(WP_REST_Request $request)
+    public static function handle(Context $ctx)
     {
         $agent = $request->get_param('_agent');
 

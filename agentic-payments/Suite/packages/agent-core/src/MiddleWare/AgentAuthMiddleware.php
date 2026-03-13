@@ -22,7 +22,7 @@ class AgentAuthMiddleware
 {
     const MAX_SKEW = 300; // 5 minutes
 
-    public static function handle(WP_REST_Request $request)
+    public static function handle(Context $ctx)
     {
         $signature = $request->get_header('x-agent-signature');
         $timestamp = $request->get_header('x-agent-timestamp');

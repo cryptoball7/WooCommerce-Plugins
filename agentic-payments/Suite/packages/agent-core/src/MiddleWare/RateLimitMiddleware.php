@@ -17,7 +17,7 @@ class RateLimitMiddleware
     const DEFAULT_LIMIT = 60;
     const DEFAULT_WINDOW = 60; // seconds
 
-    public static function handle(WP_REST_Request $request)
+    public static function handle(Context $ctx)
     {
         $agent = $request->get_param('_agent');
 

@@ -14,7 +14,7 @@ use AgentCommerce\Core\Http\RequestAttributes;
  */
 class LoggingMiddleware
 {
-    public static function handle(WP_REST_Request $request)
+    public static function handle(Context $ctx)
     {
         $start = microtime(true);
 
