@@ -1,0 +1,142 @@
+import requests
+import json
+from requests.auth import HTTPBasicAuth
+from jsonschema import validate
+
+BASE_URL = "https://yourstore.com/wp-json/agent-commerce/v1"
+WC_KEY = "ck_xxxxxxxxx"
+WC_SECRET = "cs_xxxxxxxxx"
+
+TEST_PRODUCT_ID = 123
+CUSTOMER_ID = 1
+AGENT_ID = "agent_test"
+
+auth = HTTPBasicAuth(WC_KEY, WC_SECRET)
+
+session_id = None
+
+
+def print_result(name, success):
+    if success:
+        print(f"[PASS] {name}")
+    else:
+        print(f"[FAIL] {name}")
+
+
+def test_catalog_search():
+    url = f"{BASE_URL}/catalog/products"
+
+    r = requests.get(url, auth=auth)
+
+    success = r.status_code == 200 and "products" in r.json()
+
+    print_result("Catalog Search", success)
+
+    return r.json()
+
+
+def test_product_details():
+    url = f"{BASE_URL}/catalog/products/{TEST_PRODUCT_ID}"
+
+    r = requests.get(url, auth=auth)
+
+    success = r.status_code == 200 and "product" in r.json()
+
+    print_result("Product Details", success)
+
+    return r.json()
+
+
+def create_checkout_session():
+    global session_id
+
+    url = f"{BASE_URL}/checkout/sessions"
+
+    payload = {
+        "agent_id": AGENT_ID,
+        "customer_id": CUSTOMER_ID,
+        "items": [
+            {
+                "product_id": TEST_PRODUCT_ID,
+                "quantity": 1
+            }
+        ]
+    }
+
+    r = requests.post(url, auth=auth, json=payload)
+
+    data = r.json()
+
+    success = r.status_code == 200 and "session_id" in data
+
+    if success:
+        session_id = data["session_id"]
+
+    print_result("Create Checkout Session", success)
+
+    return data
+
+
+def quote_session():
+    global session_id
+
+    url = f"{BASE_URL}/checkout/sessions/{session_id}/quote"
+
+    r = requests.post(url, auth=auth)
+
+    success = r.status_code == 200 and "price_locked_until" in r.json()
+
+    print_result("Quote Session", success)
+
+    return r.json()
+
+
+def authorize_payment():
+    global session_id
+
+    url = f"{BASE_URL}/checkout/sessions/{session_id}/authorize"
+
+    payload = {
+        "payment_token": "tok_test"
+    }
+
+    r = requests.post(url, auth=auth, json=payload)
+
+    success = r.status_code in [200, 201]
+
+    print_result("Authorize Payment", success)
+
+    return r.json()
+
+
+def complete_checkout():
+    global session_id
+
+    url = f"{BASE_URL}/checkout/sessions/{session_id}/complete"
+
+    r = requests.post(url, auth=auth)
+
+    success = r.status_code == 200 and "order_id" in r.json()
+
+    print_result("Complete Checkout", success)
+
+    return r.json()
+
+
+def run_full_flow():
+
+    print("\n--- Testing Catalog ---")
+
+    test_catalog_search()
+    test_product_details()
+
+    print("\n--- Testing Checkout Flow ---")
+
+    create_checkout_session()
+    quote_session()
+    authorize_payment()
+    complete_checkout()
+
+
+if __name__ == "__main__":
+    run_full_flow()
