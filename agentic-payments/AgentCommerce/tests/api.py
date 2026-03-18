@@ -3,9 +3,20 @@ import json
 from requests.auth import HTTPBasicAuth
 from jsonschema import validate
 
-BASE_URL = "https://yourstore.com/wp-json/agent-commerce/v1"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BASE_URL = "https://"+os.getenv('DOMAIN')+"/wp-json/agent-commerce/v1"
+PEM_PATH = os.getenv('PEM_PATH')
+PEM_PATH = PEM_PATH and PEM_PATH or None
+PEM_PATH = False # TODO: Renew Cert
 WC_KEY = "ck_xxxxxxxxx"
 WC_SECRET = "cs_xxxxxxxxx"
+
+session = requests.Session()
+session.verify = PEM_PATH
 
 TEST_PRODUCT_ID = 123
 CUSTOMER_ID = 1
@@ -26,7 +37,7 @@ def print_result(name, success):
 def test_catalog_search():
     url = f"{BASE_URL}/catalog/products"
 
-    r = requests.get(url, auth=auth)
+    r = session.get(url, auth=auth)
 
     success = r.status_code == 200 and "products" in r.json()
 
@@ -38,7 +49,7 @@ def test_catalog_search():
 def test_product_details():
     url = f"{BASE_URL}/catalog/products/{TEST_PRODUCT_ID}"
 
-    r = requests.get(url, auth=auth)
+    r = session.get(url, auth=auth)
 
     success = r.status_code == 200 and "product" in r.json()
 
@@ -63,7 +74,7 @@ def create_checkout_session():
         ]
     }
 
-    r = requests.post(url, auth=auth, json=payload)
+    r = session.post(url, auth=auth, json=payload)
 
     data = r.json()
 
@@ -82,7 +93,7 @@ def quote_session():
 
     url = f"{BASE_URL}/checkout/sessions/{session_id}/quote"
 
-    r = requests.post(url, auth=auth)
+    r = session.post(url, auth=auth)
 
     success = r.status_code == 200 and "price_locked_until" in r.json()
 
@@ -100,7 +111,7 @@ def authorize_payment():
         "payment_token": "tok_test"
     }
 
-    r = requests.post(url, auth=auth, json=payload)
+    r = session.post(url, auth=auth, json=payload)
 
     success = r.status_code in [200, 201]
 
@@ -114,7 +125,7 @@ def complete_checkout():
 
     url = f"{BASE_URL}/checkout/sessions/{session_id}/complete"
 
-    r = requests.post(url, auth=auth)
+    r = session.post(url, auth=auth)
 
     success = r.status_code == 200 and "order_id" in r.json()
 
