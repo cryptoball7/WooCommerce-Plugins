@@ -10,8 +10,7 @@ load_dotenv()
 
 BASE_URL = "https://"+os.getenv('DOMAIN')+"/wp-json/agent-commerce/v1"
 PEM_PATH = os.getenv('PEM_PATH')
-PEM_PATH = PEM_PATH and PEM_PATH or None
-PEM_PATH = False # TODO: Renew Cert
+PEM_PATH = PEM_PATH and PEM_PATH or True
 WC_KEY = "ck_xxxxxxxxx"
 WC_SECRET = "cs_xxxxxxxxx"
 
