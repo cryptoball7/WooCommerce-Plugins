@@ -138,7 +138,8 @@ def run_full_flow():
     print("\n--- Testing Catalog ---")
 
     test_catalog_search()
-    test_product_details()
+    x = test_product_details()
+    print(x)
 
     print("\n--- Testing Checkout Flow ---")
 
