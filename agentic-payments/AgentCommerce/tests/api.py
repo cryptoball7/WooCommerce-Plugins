@@ -132,14 +132,25 @@ def complete_checkout():
 
     return r.json()
 
+def my_tests():
+    url = f"{BASE_URL}/catalog/products/91"
+
+    r = session.get(url, auth=auth)
+
+    success = r.status_code == 200 and "product" in r.json()
+
+    print_result("Product 91 Details", success)
+    print(r)
+
 
 def run_full_flow():
+
+    my_tests()
 
     print("\n--- Testing Catalog ---")
 
     test_catalog_search()
-    x = test_product_details()
-    print(x)
+    test_product_details()
 
     print("\n--- Testing Checkout Flow ---")
 
