@@ -132,7 +132,13 @@ def complete_checkout():
 
     return r.json()
 
+def my_inits():
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.SubjectAltNameWarning)
+
 def my_tests():
+    print("\n--- Performing Custom Tests ---")
+
     url = f"{BASE_URL}/catalog/products/91"
 
     r = session.get(url, auth=auth)
@@ -144,6 +150,8 @@ def my_tests():
 
 
 def run_full_flow():
+
+    my_inits()
 
     my_tests()
 
