@@ -147,6 +147,9 @@ def my_tests():
 
     print_result("Product 91 Details", success)
     print(r)
+    
+    data = create_checkout_session()
+    print(data)
 
 
 def run_full_flow():
