@@ -143,6 +143,8 @@ def my_tests():
 
     r = session.get(url, auth=auth)
 
+    print(r.text)
+
     success = r.status_code == 200 and "product" in r.json()
 
     print_result("Product 91 Details", success)
