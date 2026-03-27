@@ -8,17 +8,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DOMAIN = os.getenv('DOMAIN')
+DOMAIN = DOMAIN and DOMAIN or "localhost"
+
 BASE_URL = "https://"+os.getenv('DOMAIN')+"/wp-json/agent-commerce/v1"
+
 PEM_PATH = os.getenv('PEM_PATH')
 PEM_PATH = PEM_PATH and PEM_PATH or True
+
 WC_KEY = "ck_xxxxxxxxx"
 WC_SECRET = "cs_xxxxxxxxx"
 
 session = requests.Session()
 session.verify = PEM_PATH
 
-TEST_PRODUCT_ID = 123
+TEST_PRODUCT_ID = os.getenv('TEST_PRODUCT_ID')
+TEST_PRODUCT_ID = TEST_PRODUCT_ID and TEST_PRODUCT_ID or 123
+
 CUSTOMER_ID = 1
+
 AGENT_ID = "agent_test"
 
 auth = HTTPBasicAuth(WC_KEY, WC_SECRET)
@@ -151,6 +159,9 @@ def my_tests():
     print(r)
     
     data = create_checkout_session()
+    print(data)
+
+    data = authorize_payment()
     print(data)
 
 
