@@ -16,6 +16,8 @@ class Agent_Checkout_DB {
             customer_id bigint,
             status varchar(32),
             total decimal(10,2),
+            payment_token varchar(128),
+            authorized_at datetime NULL,
             price_locked_until datetime,
             created_at datetime
         ) $charset;";
