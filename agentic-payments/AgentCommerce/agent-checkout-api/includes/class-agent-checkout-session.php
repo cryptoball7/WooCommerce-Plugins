@@ -88,4 +88,41 @@ class Agent_Checkout_Session {
 
         return $order->get_id();
     }
+
+public static function authorize($session_id, $payment_token) {
+
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'agent_checkout_sessions';
+
+    $session = $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM $table WHERE session_id=%s", $session_id)
+    );
+
+    if (!$session) {
+        throw new Exception("Session not found");
+    }
+
+    if ($session->status !== 'quoted') {
+        throw new Exception("Session must be quoted before authorization");
+    }
+
+    // V1: mock validation
+    if (empty($payment_token)) {
+        throw new Exception("Invalid payment token");
+    }
+
+    $wpdb->update(
+        $table,
+        [
+            'status' => 'authorized',
+            'payment_token' => $payment_token,
+            'authorized_at' => current_time('mysql')
+        ],
+        ['session_id' => $session_id]
+    );
+
+    return true;
+}
+
 }
