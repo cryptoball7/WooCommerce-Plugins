@@ -161,8 +161,22 @@ def my_tests():
     data = create_checkout_session()
     print(data)
 
+    global session_id
+
+    url = f"{BASE_URL}/checkout/sessions/{session_id}/authorize"
+
+    payload = {
+        "payment_token": "tok_test"
+    }
+
+    r = session.post(url, auth=auth, json=payload)
+
+    print("Authorize response text:")
+    print(r.text)
+
     data = authorize_payment()
     print(data)
+    
 
 
 def run_full_flow():
