@@ -147,6 +147,7 @@ def my_inits():
 def my_tests():
     print("\n--- Performing Custom Tests ---")
 
+    '''
     url = f"{BASE_URL}/catalog/products/91"
 
     r = session.get(url, auth=auth)
@@ -160,6 +161,9 @@ def my_tests():
     
     data = create_checkout_session()
     print(data)
+    '''
+    create_checkout_session()
+    quote_session()
 
     global session_id
 
@@ -174,8 +178,10 @@ def my_tests():
     print("Authorize response text:")
     print(r.text)
 
+    '''
     data = authorize_payment()
     print(data)
+    '''
     
 
 

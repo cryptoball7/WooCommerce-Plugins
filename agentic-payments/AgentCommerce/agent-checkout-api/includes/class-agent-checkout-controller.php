@@ -22,11 +22,11 @@ class Agent_Checkout_Controller {
             'permission_callback' => '__return_true'
         ]);
 
-register_rest_route('agent-commerce/v1', '/checkout/sessions/(?P<id>[a-zA-Z0-9-]+)/authorize', [
-    'methods' => 'POST',
-    'callback' => [$this, 'authorize_session'],
-    'permission_callback' => '__return_true'
-]);
+        register_rest_route('agent-commerce/v1', '/checkout/sessions/(?P<id>[a-zA-Z0-9-]+)/authorize', [
+            'methods' => 'POST',
+            'callback' => [$this, 'authorize_session'],
+            'permission_callback' => '__return_true'
+        ]);
     }
 
     public function create_session($request) {
@@ -97,27 +97,27 @@ register_rest_route('agent-commerce/v1', '/checkout/sessions/(?P<id>[a-zA-Z0-9-]
         }
     }
 
-public function authorize_session($request) {
+    public function authorize_session($request) {
 
-    $session_id = $request['id'];
-    $payment_token = $request->get_param('payment_token');
+        $session_id = $request['id'];
+        $payment_token = $request->get_param('payment_token');
 
-    try {
+        try {
 
-        Agent_Checkout_Session::authorize($session_id, $payment_token);
+            Agent_Checkout_Session::authorize($session_id, $payment_token);
 
-        return [
-            'status' => 'authorized'
-        ];
+            return [
+                'status' => 'authorized'
+            ];
 
-    } catch (Exception $e) {
+        } catch (Exception $e) {
 
-        return new WP_Error(
-            'authorization_error',
-            $e->getMessage(),
-            ['status' => 400]
-        );
+            return new WP_Error(
+                'authorization_error',
+                $e->getMessage(),
+                ['status' => 400]
+            );
+        }
     }
-}
-
+    
 }

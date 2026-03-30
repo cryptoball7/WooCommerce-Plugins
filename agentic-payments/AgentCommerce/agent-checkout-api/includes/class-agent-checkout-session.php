@@ -72,9 +72,9 @@ class Agent_Checkout_Session {
             throw new Exception("Session not found");
         }
 
-if ($session->status !== 'authorized') {
-    throw new Exception("Session must be authorized before completion");
-}
+        if ($session->status !== 'authorized') {
+            throw new Exception("Session must be authorized before completion");
+        }
 
         $order = wc_create_order([
             'customer_id' => $session->customer_id
