@@ -1,0 +1,16 @@
+
+--- Performing Custom Tests ---
+[PASS] Create Checkout Session
+[PASS] Quote Session
+Authorize response text:
+{"status":"authorized"}
+
+--- Testing Catalog ---
+[PASS] Catalog Search
+[PASS] Product Details
+
+--- Testing Checkout Flow ---
+[PASS] Create Checkout Session
+[PASS] Quote Session
+[PASS] Authorize Payment
+[PASS] Complete Checkout
