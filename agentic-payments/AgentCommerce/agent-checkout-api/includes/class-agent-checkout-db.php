@@ -2,28 +2,26 @@
 
 class Agent_Checkout_DB {
 
-    public static function install() {
+public static function install() {
 
-        global $wpdb;
+    global $wpdb;
 
-        $table = $wpdb->prefix . 'agent_checkout_sessions';
+    $charset = $wpdb->get_charset_collate();
 
-        $charset = $wpdb->get_charset_collate();
+    $table = $wpdb->prefix . 'agent_idempotency_keys';
 
-        $sql = "CREATE TABLE $table (
-            session_id varchar(64) PRIMARY KEY,
-            agent_id varchar(64),
-            customer_id bigint,
-            status varchar(32),
-            total decimal(10,2),
-            payment_token varchar(128),
-            authorized_at datetime NULL,
-            price_locked_until datetime,
-            created_at datetime
-        ) $charset;";
+    $sql = "CREATE TABLE $table (
+        id bigint AUTO_INCREMENT PRIMARY KEY,
+        idempotency_key varchar(128),
+        endpoint varchar(255),
+        request_hash varchar(64),
+        response longtext,
+        status_code int,
+        created_at datetime,
+        UNIQUE KEY unique_key (idempotency_key, endpoint)
+    ) $charset;";
 
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-
-        dbDelta($sql);
-    }
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
 }
